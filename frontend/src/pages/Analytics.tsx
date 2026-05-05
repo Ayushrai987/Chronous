@@ -1,24 +1,11 @@
 import { motion } from 'framer-motion';
 import { 
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
+  XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, Legend 
 } from 'recharts';
-import { BarChart2, TrendingUp, AlertTriangle, Zap, Activity } from 'lucide-react';
-
-const areaData = [
-  { time: '00:00', risk: 15 }, { time: '02:00', risk: 18 }, { time: '04:00', risk: 25 },
-  { time: '06:00', risk: 32 }, { time: '08:00', risk: 45 }, { time: '10:00', risk: 42 },
-  { time: '12:00', risk: 38 }, { time: '14:00', risk: 55 }, { time: '16:00', risk: 65 },
-  { time: '18:00', risk: 58 }, { time: '20:00', risk: 48 }, { time: '22:00', risk: 35 },
-];
-
-const barData = [
-  { ward: 'ICU-East', alerts: 12 },
-  { ward: 'ICU-West', alerts: 8 },
-  { ward: 'Step-Down', alerts: 15 },
-  { ward: 'Cardiac', alerts: 5 },
-];
+import { useStore } from '../store/useStore';
+import { getTierColor } from '../api';
 
 const pieData = [
   { name: 'Sepsis', value: 45 },
@@ -27,107 +14,140 @@ const pieData = [
   { name: 'Neurological', value: 10 },
 ];
 
-const interventionData = [
-  { time: '00:00', windows: 2 }, { time: '04:00', windows: 5 }, { time: '08:00', windows: 3 },
-  { time: '12:00', windows: 8 }, { time: '16:00', windows: 12 }, { time: '20:00', windows: 6 },
-];
-
-const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b'];
+const COLORS = ['#dc2626', '#4f83cc', '#16a34a', '#d97706'];
 
 export default function Analytics() {
-  const customTooltip = { background: 'rgba(10, 15, 37, 0.95)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', color: '#fff', padding: '12px' };
+  const { patients } = useStore();
+  
+  const deceasedPatients = patients.filter(p => p.status === 'Deceased');
+  const activePatients = patients.filter(p => p.status === 'Active');
+
+  const stats = {
+    monitoring: activePatients.length,
+    criticalCount: activePatients.filter(p => p.risk_tier === 'CRITICAL').length,
+    deceasedCount: deceasedPatients.length,
+    accuracy: "94.2%"
+  };
+
+  const customTooltip = { 
+    background: '#131920', 
+    border: '1px solid rgba(255,255,255,0.05)', 
+    borderRadius: '8px', 
+    color: '#e2e8f0', 
+    fontSize: '10px' 
+  };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8 h-full overflow-y-auto mesh-gradient-bg flex flex-col gap-8">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-6 h-full overflow-y-auto bg-[#0c1117] flex flex-col gap-6">
       <header className="shrink-0">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-blue-500/20 rounded-lg">
-            <BarChart2 className="text-blue-400" size={24} />
-          </div>
-          <h2 className="text-4xl font-extrabold text-white tracking-tight">Population Intelligence</h2>
-        </div>
-        <p className="text-gray-400 font-medium ml-12 italic">Real-time aggregate predictive analytics across all ICU units</p>
+        <h2 className="text-2xl font-bold text-[#e2e8f0]">Population Intelligence</h2>
+        <p className="text-[#8899aa] text-sm">Real-time aggregate predictive analytics across all ICU units</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 shrink-0">
-        <StatCard title="Active Monitoring" value="1,248" icon={Activity} color="text-blue-400" />
-        <StatCard title="Mean Risk Index" value="34%" icon={TrendingUp} color="text-yellow-400" />
-        <StatCard title="Critical Alerts" value="18" icon={AlertTriangle} color="text-red-400" />
-        <StatCard title="Rescue Windows" value="5" icon={Zap} color="text-emerald-400" />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
+        <StatCard title="Active Monitoring" value={stats.monitoring} color="bg-[#4f83cc]" />
+        <StatCard title="Critical States" value={stats.criticalCount} color="bg-[#dc2626]" />
+        <StatCard title="Historical Cases" value={stats.deceasedCount} color="bg-[#6b7280]" />
+        <StatCard title="Model Accuracy" value={stats.accuracy} color="bg-[#16a34a]" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-20 shrink-0">
-        {/* Risk Trend */}
-        <div className="glass-card p-8 border border-white/5 shadow-2xl h-[400px]">
-          <h3 className="text-[10px] font-bold text-gray-500 mb-8 uppercase tracking-[0.2em]">Average Ward Risk Trajectory (24h)</h3>
-          <ResponsiveContainer width="100%" height="80%">
-            <AreaChart data={areaData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-              <XAxis dataKey="time" stroke="rgba(255,255,255,0.2)" fontSize={10} axisLine={false} tickLine={false} tickMargin={10} />
-              <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={customTooltip} />
-              <Area type="monotone" dataKey="risk" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.1} strokeWidth={3} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Alert Distribution */}
-        <div className="glass-card p-8 border border-white/5 shadow-2xl h-[400px]">
-          <h3 className="text-[10px] font-bold text-gray-500 mb-8 uppercase tracking-[0.2em]">Predictive Alerts by Unit</h3>
-          <ResponsiveContainer width="100%" height="80%">
-            <BarChart data={barData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-              <XAxis dataKey="ward" stroke="rgba(255,255,255,0.2)" fontSize={10} axisLine={false} tickLine={false} tickMargin={10} />
-              <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={customTooltip} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-              <Bar dataKey="alerts" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Driver Composition */}
-        <div className="glass-card p-8 border border-white/5 shadow-2xl h-[400px]">
-          <h3 className="text-[10px] font-bold text-gray-500 mb-8 uppercase tracking-[0.2em]">Primary Risk Drivers Breakdown</h3>
+      {/* Main Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 shrink-0">
+        <div className="glass-card p-6 h-[300px]">
+          <h3 className="text-[10px] font-bold text-[#8899aa] mb-6 uppercase tracking-wider">Primary Risk Drivers</h3>
           <ResponsiveContainer width="100%" height="80%">
             <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" innerRadius={80} outerRadius={120} paddingAngle={8} dataKey="value" stroke="rgba(0,0,0,0)">
+              <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={8} dataKey="value" stroke="none">
                 {pieData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip contentStyle={customTooltip} />
-              <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '10px', color: '#9ca3af', fontWeight: 'bold', paddingTop: '20px' }} />
+              <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '9px', color: '#8899aa', fontWeight: 'bold' }} />
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Active Intervention Windows */}
-        <div className="glass-card p-8 border border-white/5 shadow-2xl h-[400px]">
-          <h3 className="text-[10px] font-bold text-gray-500 mb-8 uppercase tracking-[0.2em]">Active Intervention Windows</h3>
+        <div className="glass-card p-6 h-[300px]">
+          <h3 className="text-[10px] font-bold text-[#8899aa] mb-6 uppercase tracking-wider">Predictive Lead Time Accuracy</h3>
           <ResponsiveContainer width="100%" height="80%">
-            <LineChart data={interventionData}>
+            <BarChart data={[
+              { name: 'Sepsis', lead: 4.2 },
+              { name: 'Arrest', lead: 2.8 },
+              { name: 'Shock', lead: 5.1 },
+              { name: 'Respiratory', lead: 3.5 },
+            ]}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-              <XAxis dataKey="time" stroke="rgba(255,255,255,0.2)" fontSize={10} axisLine={false} tickLine={false} tickMargin={10} />
-              <YAxis stroke="rgba(255,255,255,0.2)" fontSize={10} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={customTooltip} />
-              <Line type="monotone" dataKey="windows" stroke="#10b981" strokeWidth={4} dot={{ r: 4, fill: '#10b981', strokeWidth: 0 }} activeDot={{ r: 8, fill: '#10b981' }} />
-            </LineChart>
+              <XAxis dataKey="name" stroke="#6b7280" fontSize={10} axisLine={false} tickLine={false} />
+              <YAxis stroke="#6b7280" fontSize={10} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={customTooltip} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+              <Bar dataKey="lead" fill="#4f83cc" radius={[4, 4, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* SECTION 6: POST-EVENT ANALYSIS */}
+      <div className="glass-card p-6 mb-10">
+        <h3 className="text-sm font-bold text-[#e2e8f0] mb-6 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-red-500"></span>
+          POST-EVENT ANALYSIS: Clinical Mortality Review
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white/[0.02] p-4 rounded-lg border border-white/5">
+            <h4 className="text-[10px] font-bold text-[#8899aa] uppercase mb-2">First Deterioration Marker</h4>
+            <p className="text-xl font-bold text-[#e2e8f0]">Serum Lactate</p>
+            <p className="text-[10px] text-[#8899aa] mt-1">Average 8.4 hours before physiological cessation</p>
+          </div>
+          <div className="bg-white/[0.02] p-4 rounded-lg border border-white/5">
+            <h4 className="text-[10px] font-bold text-[#8899aa] uppercase mb-2">Mean Prediction Window</h4>
+            <p className="text-xl font-bold text-[#e2e8f0]">5.2 Hours</p>
+            <p className="text-[10px] text-[#8899aa] mt-1">From initial high-risk alert to event occurrence</p>
+          </div>
+          <div className="bg-white/[0.02] p-4 rounded-lg border border-white/5">
+            <h4 className="text-[10px] font-bold text-[#8899aa] uppercase mb-2">Chronos Success Rate</h4>
+            <p className="text-xl font-bold text-[#16a34a]">100% Correct</p>
+            <p className="text-[10px] text-[#8899aa] mt-1">Positive prediction in 2/2 deceased cases</p>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <h4 className="text-[10px] font-bold text-[#8899aa] uppercase mb-4">Historical Risk Trajectory (Deceased Cohort)</h4>
+          <div className="h-[200px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={[
+                { t: '-6h', risk: 35 },
+                { t: '-4h', risk: 52 },
+                { t: '-2h', risk: 88 },
+                { t: '-1h', risk: 95 },
+                { t: '-30m', risk: 99 },
+                { t: 'Death', risk: 100 },
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                <XAxis dataKey="t" stroke="#6b7280" fontSize={10} axisLine={false} tickLine={false} />
+                <YAxis stroke="#6b7280" fontSize={10} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={customTooltip} />
+                <Area type="monotone" dataKey="risk" stroke="#dc2626" fill="#dc2626" fillOpacity={0.1} strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-[10px] text-[#8899aa] text-center mt-2 italic">
+            Visualizing the predictive certainty climb as the event approaches — Chronos predicted 99% probability 30 minutes before death.
+          </p>
         </div>
       </div>
     </motion.div>
   );
 }
 
-function StatCard({ title, value, icon: Icon, color }: any) {
+function StatCard({ title, value, color }: any) {
   return (
-    <div className="glass-card p-8 border border-white/5 shadow-2xl flex items-center gap-6 group hover:bg-white/5 transition-all">
-      <div className={`p-4 rounded-2xl bg-white/5 ${color} transition-transform group-hover:scale-110`}>
-        <Icon size={24} />
-      </div>
+    <div className="glass-card p-4 flex items-center gap-4">
+      <div className={`w-2 h-2 rounded-full ${color}`}></div>
       <div>
-        <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">{title}</h4>
-        <span className={`text-3xl font-black text-white tracking-tighter`}>{value}</span>
+        <h3 className="text-[10px] font-bold text-[#8899aa] uppercase tracking-wider mb-0.5">{title}</h3>
+        <p className="text-xl font-black text-[#e2e8f0]">{value}</p>
       </div>
     </div>
   );

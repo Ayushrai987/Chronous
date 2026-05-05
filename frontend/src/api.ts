@@ -55,6 +55,7 @@ export interface Patient {
   bed_id: string;
   admission_time: string;
   assigned_nurse?: string;
+  attending_physician?: string;
   diagnosis: string;
   allergies?: string[];
   medications?: string[];
@@ -71,6 +72,8 @@ export interface Patient {
   shap_values?: number[][];
   is_new?: boolean;
   interventions?: any[];
+  alert_history?: any[];
+  clinical_notes?: string;
 }
 
 export interface PatientsResponse {
@@ -111,22 +114,22 @@ export async function fetchSystemStatus(): Promise<{
 
 export function getTierColor(tier: string): string {
   const colors: Record<string, string> = {
-    CRITICAL: '#ef4444',
-    HIGH: '#f59e0b',
-    WATCH: '#eab308',
-    STABLE: '#22c55e',
+    CRITICAL: '#dc2626',
+    HIGH: '#d97706',
+    WATCH: '#ca8a04',
+    STABLE: '#16a34a',
   };
   return colors[tier] || '#6b7280';
 }
 
 export function getTierBg(tier: string): string {
   const colors: Record<string, string> = {
-    CRITICAL: 'rgba(239, 68, 68, 0.12)',
-    HIGH: 'rgba(245, 158, 11, 0.12)',
-    WATCH: 'rgba(234, 179, 8, 0.12)',
-    STABLE: 'rgba(34, 197, 94, 0.12)',
+    CRITICAL: 'rgba(220, 38, 38, 0.08)',
+    HIGH: 'rgba(217, 119, 6, 0.08)',
+    WATCH: 'rgba(202, 138, 4, 0.08)',
+    STABLE: 'rgba(22, 163, 74, 0.08)',
   };
-  return colors[tier] || 'rgba(107, 114, 128, 0.12)';
+  return colors[tier] || 'rgba(107, 114, 128, 0.08)';
 }
 
 export const FEATURE_UNITS: Record<string, string> = {
@@ -157,12 +160,12 @@ export const VITAL_LABELS: Record<string, string> = {
 };
 
 export const VITAL_COLORS: Record<string, string> = {
-  heart_rate: '#ef4444',
-  map_pressure: '#3b82f6',
-  spo2: '#06b6d4',
-  respiratory_rate: '#8b5cf6',
-  temperature: '#f59e0b',
-  serum_lactate: '#ec4899',
-  gcs_score: '#22c55e',
-  urine_output: '#a78bfa',
+  heart_rate: '#e05555',
+  map_pressure: '#5588dd',
+  spo2: '#44aa88',
+  respiratory_rate: '#8899aa',
+  temperature: '#d97706',
+  serum_lactate: '#ca8a04',
+  gcs_score: '#16a34a',
+  urine_output: '#4f83cc',
 };

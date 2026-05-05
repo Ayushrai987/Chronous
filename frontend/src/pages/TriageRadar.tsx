@@ -3,36 +3,32 @@ import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Activity, Users, Search, Filter, ChevronRight, 
-  AlertCircle, TrendingDown, Clock, ShieldCheck, Zap
+  Search, Clock
 } from 'lucide-react';
 import PatientCard from '../components/PatientCard';
 
 export default function TriageRadar() {
   const navigate = useNavigate();
-  const { patients, demoMode } = useStore();
+  const { patients } = useStore();
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
 
   const stats = useMemo(() => {
+    const active = patients.filter(p => p.status === 'Active');
     return {
-      total: patients.length,
-      critical: patients.filter(p => p.risk_tier === 'CRITICAL').length,
-      high: patients.filter(p => p.risk_tier === 'HIGH').length,
-      avgRisk: Math.round((patients.reduce((acc, p) => acc + p.crash_probability, 0) / patients.length) * 100)
+      total: active.length,
+      critical: active.filter(p => p.risk_tier === 'CRITICAL').length,
+      high: active.filter(p => p.risk_tier === 'HIGH').length,
+      avgRisk: active.length > 0 ? Math.round((active.reduce((acc, p) => acc + p.crash_probability, 0) / active.length) * 100) : 0
     };
   }, [patients]);
 
   const filteredPatients = patients
     .filter(p => {
-      const matchesFilter = 
-        filter === 'All' || 
-        (filter === 'High Risk' && (p.risk_tier === 'CRITICAL' || p.risk_tier === 'HIGH')) ||
-        (filter === 'Watch' && p.risk_tier === 'WATCH');
-      
+      // Problem 1 fix: Default filter All shows everything matching search
+      const matchesFilter = filter === 'All' || p.status === filter || p.risk_tier === filter;
       const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
                           p.bed_id.toLowerCase().includes(search.toLowerCase());
-      
       return matchesFilter && matchesSearch;
     })
     .sort((a, b) => b.crash_probability - a.crash_probability);
@@ -41,42 +37,37 @@ export default function TriageRadar() {
     <motion.div 
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }}
-      className="h-full flex flex-col mesh-gradient-bg p-8 gap-8 overflow-hidden"
+      className="h-full flex flex-col p-6 gap-6 overflow-hidden bg-[#0c1117]"
     >
       {/* HEADER COMMAND BAR */}
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 shrink-0">
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 shrink-0">
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-500/20 rounded-lg">
-              <Activity className="text-blue-400" size={24} />
-            </div>
-            <h2 className="text-4xl font-extrabold text-white tracking-tight">Triage Command</h2>
-          </div>
-          <p className="text-gray-400 font-medium ml-12">
-            {demoMode ? 'LIVE SIMULATION ACTIVE' : 'REAL-TIME CLINICAL MONITORING'} • {patients.length} BEDS
+          <h2 className="text-2xl font-bold text-[#e2e8f0]">Triage Command</h2>
+          <p className="text-[#8899aa] text-sm font-medium">
+            REAL-TIME CLINICAL MONITORING • {stats.total} ACTIVE BEDS
           </p>
         </div>
 
         <div className="flex items-center gap-4 w-full lg:w-auto">
           <div className="relative flex-1 lg:w-64">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8899aa]" size={16} />
             <input 
               type="text" 
-              placeholder="Search patients..." 
+              placeholder="Search beds or names..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 transition-all"
+              className="w-full pl-10 pr-4 py-2 bg-[#131920] border border-white/5 rounded-lg text-sm text-[#e2e8f0] placeholder-[#8899aa] focus:outline-none focus:border-[#4f83cc]/50 transition-all"
             />
           </div>
-          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
-            {['All', 'High Risk', 'Watch'].map((f) => (
+          <div className="flex bg-[#131920] p-1 rounded-lg border border-white/5">
+            {['All', 'Active', 'CRITICAL', 'HIGH'].map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
                   filter === f 
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' 
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-[#4f83cc] text-white shadow-lg' 
+                    : 'text-[#8899aa] hover:text-[#e2e8f0] hover:bg-white/5'
                 }`}
               >
                 {f}
@@ -86,82 +77,75 @@ export default function TriageRadar() {
         </div>
       </header>
 
-      {/* KPI RIBBON */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 shrink-0">
-        <StatCard title="Total Census" value={stats.total} icon={Users} color="text-blue-400" border="border-blue-500/30" />
-        <StatCard title="Critical/High" value={stats.critical + stats.high} icon={AlertCircle} color="text-red-400" border="border-red-500/30" />
-        <StatCard title="System Avg Risk" value={`${stats.avgRisk}%`} icon={TrendingDown} color="text-yellow-400" border="border-yellow-500/30" />
-        <StatCard title="Uptime Status" value="Healthy" icon={ShieldCheck} color="text-emerald-400" border="border-emerald-500/30" />
+      {/* PROBLEM 4 FIX: Compact Stats Bar */}
+      <div className="flex flex-row items-center gap-8 px-6 py-4 bg-[#131920] border border-white/5 rounded-lg max-h-[70px] overflow-hidden shrink-0">
+        <StatItem title="Total Census" value={stats.total} color="bg-[#4f83cc]" />
+        <StatItem title="Critical" value={stats.critical} color="bg-[#dc2626]" />
+        <StatItem title="High Risk" value={stats.high} color="bg-[#d97706]" />
+        <StatItem title="Avg Risk" value={`${stats.avgRisk}%`} color="bg-[#ca8a04]" />
       </div>
 
-      {/* PATIENT GRID */}
+      {/* PROBLEM 3 FIX: Responsive Grid Layout */}
       <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
         <AnimatePresence mode="popLayout">
           <motion.div 
             layout
-            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6"
+            className="grid gap-4"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))'
+            }}
           >
             {filteredPatients.map((patient) => (
               <motion.div
                 key={patient.patient_id}
                 layout
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                whileHover={{ y: -5 }}
-                className="cursor-pointer"
+                exit={{ opacity: 0, scale: 0.98 }}
                 onClick={() => navigate(`/app/patient/${patient.patient_id}`)}
+                className="cursor-pointer"
               >
                 <PatientCard patient={patient} />
               </motion.div>
             ))}
           </motion.div>
         </AnimatePresence>
-        
-        {filteredPatients.length === 0 && (
-          <div className="h-64 flex flex-col items-center justify-center text-gray-500">
-            <Search size={48} className="mb-4 opacity-20" />
-            <p className="text-xl font-medium">No patients found matching your criteria</p>
-          </div>
-        )}
       </div>
 
       {/* BOTTOM ACTION BAR */}
-      <div className="shrink-0 flex justify-between items-center px-6 py-4 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-xl">
+      <div className="shrink-0 flex justify-between items-center px-5 py-3 bg-[#131920] border border-white/5 rounded-lg">
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+          <div className="flex items-center gap-2 text-[11px] font-bold text-[#6b7280] uppercase tracking-wider">
+            <div className="w-2 h-2 rounded-full bg-[#16a34a]"></div>
+            SYSTEM STATUS: OPERATIONAL
+          </div>
+          <div className="flex items-center gap-2 text-[11px] font-bold text-[#6b7280] uppercase tracking-wider">
             Model: Chronos-LSTM v2.4
           </div>
-          <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest">
-            <Clock size={14} />
-            Next Inference in 4m 12s
-          </div>
-          <div className="flex items-center gap-2 text-[10px] font-black text-purple-400 bg-purple-500/10 px-3 py-1 rounded-lg border border-purple-500/30">
-            <Zap size={12} />
-            Resource Optimizer: Peak Load Expected in 2h
+          <div className="flex items-center gap-2 text-[11px] font-bold text-[#6b7280] uppercase tracking-wider">
+            <Clock size={12} />
+            Next Inference in 4m
           </div>
         </div>
         <button 
           onClick={() => navigate('/app/add-patient')}
-          className="btn-primary flex items-center gap-2"
+          className="px-4 py-1.5 bg-[#4f83cc] hover:bg-[#3d6ba7] text-white rounded-md text-xs font-bold transition-all"
         >
-          Admmit New Patient
+          Add Patient
         </button>
       </div>
     </motion.div>
   );
 }
 
-function StatCard({ title, value, icon: Icon, color, border }: any) {
+function StatItem({ title, value, color }: any) {
   return (
-    <div className={`glass-card p-6 border-l-4 ${border} flex items-center gap-6`}>
-      <div className={`p-4 rounded-2xl bg-white/5 ${color}`}>
-        <Icon size={28} />
-      </div>
-      <div>
-        <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-1">{title}</h3>
-        <p className="text-3xl font-black text-white">{value}</p>
+    <div className="flex items-center gap-3">
+      <div className={`w-2 h-2 rounded-full ${color}`}></div>
+      <div className="flex items-baseline gap-2">
+        <span className="text-lg font-bold text-white leading-none">{value}</span>
+        <span className="text-[10px] font-bold text-[#8899aa] uppercase tracking-wider">{title}</span>
       </div>
     </div>
   );

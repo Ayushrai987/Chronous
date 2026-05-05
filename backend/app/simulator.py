@@ -18,6 +18,7 @@ from .explainability import (
     get_top_drivers, get_active_causal_edges, run_counterfactual,
     classify_risk_tier, compute_shap_values, compute_feature_importance
 )
+from .sensor_integrity import SensorGuard
 
 
 class DemoSimulator:
@@ -29,6 +30,7 @@ class DemoSimulator:
     def __init__(self, crash_model: ChronosModel, sepsis_model: ChronosModel):
         self.crash_model = crash_model
         self.sepsis_model = sepsis_model
+        self.sensor_guard = SensorGuard()
         self.running = False
         self._thread: Optional[threading.Thread] = None
         self._patient_cache: Dict = {}
@@ -127,20 +129,26 @@ class DemoSimulator:
                 crash_prob = max(0.02, min(0.99, crash_prob))
                 risk_tier = classify_risk_tier(crash_prob)
 
+                # Validate signals (Integrity Check)
+                latest_vitals = vitals[0] if vitals else {}
+                is_valid, integrity_msg = self.sensor_guard.validate_vitals(latest_vitals, vitals[1:])
+
                 # Build prediction object
                 prediction = {
                     "patient_id": pid,
                     "timestamp": datetime.now().isoformat(),
-                    "crash_probability": float(round(crash_prob, 4)),
-                    "sepsis_probability": float(round(sepsis_prob, 4)),
-                    "risk_tier": risk_tier,
-                    "top_drivers": top_drivers,
-                    "causal_edges": causal_edges,
-                    "counterfactual": counterfactual,
+                    "crash_probability": float(round(crash_prob, 4)) if is_valid else 0.0,
+                    "sepsis_probability": float(round(sepsis_prob, 4)) if is_valid else 0.0,
+                    "risk_tier": risk_tier if is_valid else "TECHNICAL FAULT",
+                    "signal_quality": "VALID" if is_valid else "FAULT",
+                    "integrity_message": integrity_msg if not is_valid else "OK",
+                    "top_drivers": top_drivers if is_valid else [],
+                    "causal_edges": causal_edges if is_valid else [],
+                    "counterfactual": counterfactual if is_valid else [],
                     "intervention_window": float(intervention_window),
                     "shap_values": compute_shap_values(
                         self.crash_model, normalized
-                    ).tolist()
+                    ).tolist() if is_valid else []
                 }
                 
                 # Cache and store prediction

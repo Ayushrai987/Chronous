@@ -44,24 +44,24 @@ export default function App() {
     syncData();
     const interval = setInterval(syncData, 5000);
     return () => clearInterval(interval);
-  }, [patients, setPatients, addToast]);
+  }, [setPatients, addToast]); // Removed 'patients' dependency to prevent infinite loop
 
   return (
     <BrowserRouter>
       {/* High-Fidelity Alert Overlay */}
       <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none max-w-sm">
         {toasts.map(t => (
-          <div key={t.id} className={`pointer-events-auto p-5 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-4 backdrop-blur-2xl border transition-all animate-in fade-in slide-in-from-right-4 duration-500 ${
-            t.type === 'critical' ? 'bg-red-500/30 border-red-500/50 text-white' :
-            t.type === 'warning' ? 'bg-amber-500/30 border-amber-500/50 text-white' :
-            'bg-emerald-500/30 border-emerald-500/50 text-white'
+          <div key={t.id} className={`pointer-events-auto p-4 rounded-lg shadow-2xl flex items-center gap-4 backdrop-blur-2xl border transition-all animate-in fade-in slide-in-from-right-4 duration-500 ${
+            t.type === 'critical' ? 'bg-[#dc2626]/20 border-[#dc2626]/40 text-white' :
+            t.type === 'warning' ? 'bg-[#d97706]/20 border-[#d97706]/40 text-white' :
+            'bg-[#16a34a]/20 border-[#16a34a]/40 text-white'
           }`}>
-            <div className={`w-3 h-3 rounded-full shrink-0 ${
-               t.type === 'critical' ? 'bg-red-500 animate-pulse shadow-[0_0_15px_rgba(239,68,68,1)]' :
-               t.type === 'warning' ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,1)]' :
-               'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,1)]'
+            <div className={`w-2 h-2 rounded-full shrink-0 ${
+               t.type === 'critical' ? 'bg-[#dc2626] animate-pulse' :
+               t.type === 'warning' ? 'bg-[#d97706]' :
+               'bg-[#16a34a]'
             }`} />
-            <span className="font-bold text-sm tracking-tight">{t.message}</span>
+            <span className="font-bold text-xs tracking-tight">{t.message}</span>
           </div>
         ))}
       </div>

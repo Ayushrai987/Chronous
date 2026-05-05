@@ -1,13 +1,20 @@
 import { create } from 'zustand';
-import { Patient } from '../api';
+import { Patient, VitalReading } from '../api';
 import { INITIAL_PATIENTS, INITIAL_ALERTS } from '../lib/mockData';
 
 type Role = 'Attending Physician' | 'ICU Nurse' | 'Resident' | 'Charge Nurse' | null;
 
 interface Toast {
   id: string;
-  type: 'success' | 'warning' | 'critical';
+  type: 'success' | 'warning' | 'critical' | 'info';
   message: string;
+}
+
+interface DeathLog {
+  patientId: string;
+  confirmedAt: string;
+  physicianNote: string;
+  vitalsAtDeath: VitalReading;
 }
 
 interface AppState {
@@ -25,19 +32,28 @@ interface AppState {
   // Data
   patients: Patient[];
   alerts: any[];
+  deathLogs: Record<string, DeathLog>;
   setPatients: (patients: Patient[]) => void;
-  addPatient: (p: Patient) => void;
   updatePatient: (id: string, updates: Partial<Patient>) => void;
-  logIntervention: (patientId: string, interventionType: string, notes: string) => void;
-  markAlertLogged: (alertId: string) => void;
   
+  // Death Confirmation Engine
+  codeBluePatient: string | null;
+  triggerCodeBlue: (patientId: string) => void;
+  confirmDeath: (patientId: string, note: string) => void;
+  cancelCodeBlue: (patientId: string) => void;
+
   // UI
   toasts: Toast[];
   addToast: (toast: Omit<Toast, 'id'>) => void;
   removeToast: (id: string) => void;
+  
+  // Simulator Actions
+  simulateGradualDeath: (patientId: string) => void;
+  simulateHardwareFailure: (patientId: string) => void;
+  simulateHardwareRecovery: (patientId: string) => void;
 }
 
-export const useStore = create<AppState>((set) => ({
+export const useStore = create<AppState>((set, get) => ({
   role: null,
   login: (role) => set({ role }),
   logout: () => set({ role: null }),
@@ -50,26 +66,43 @@ export const useStore = create<AppState>((set) => ({
 
   patients: INITIAL_PATIENTS,
   alerts: INITIAL_ALERTS,
+  deathLogs: {},
+  
   setPatients: (patients) => set({ patients }),
-  addPatient: (p) => set((state) => ({ patients: [...state.patients, p] })),
   updatePatient: (id, updates) => set((state) => ({
     patients: state.patients.map(p => p.patient_id === id ? { ...p, ...updates } : p)
   })),
-  logIntervention: (patientId, interventionType, notes) => set((state) => ({
-    patients: state.patients.map(p => {
-      if (p.patient_id === patientId) {
-        return {
-          ...p,
-          interventions: [{ id: Date.now().toString(), type: interventionType, notes, timestamp: new Date().toISOString() }, ...(p.interventions || [])]
-        };
-      }
-      return p;
-    }),
-    alerts: state.alerts.map(a => a.patientId === patientId && !a.intervened ? { ...a, intervened: true } : a)
-  })),
-  markAlertLogged: (alertId) => set((state) => ({
-    alerts: state.alerts.map(a => a.id === alertId ? { ...a, intervened: true } : a)
-  })),
+
+  codeBluePatient: null,
+  
+  triggerCodeBlue: (patientId) => {
+    set({ codeBluePatient: patientId });
+    get().addToast({ type: 'critical', message: `CODE BLUE: Bed ${get().patients.find(p => p.patient_id === patientId)?.bed_id}` });
+  },
+
+  confirmDeath: (patientId, note) => {
+    const patient = get().patients.find(p => p.patient_id === patientId);
+    if (!patient) return;
+
+    const deathLog: DeathLog = {
+      patientId,
+      confirmedAt: new Date().toISOString(),
+      physicianNote: note,
+      vitalsAtDeath: patient.vitals[0] // Latest
+    };
+
+    set((state) => ({
+      codeBluePatient: null,
+      deathLogs: { ...state.deathLogs, [patientId]: deathLog },
+      patients: state.patients.map(p => 
+        p.patient_id === patientId ? { ...p, status: 'Deceased', risk_tier: 'CRITICAL' as any } : p
+      )
+    }));
+    
+    get().addToast({ type: 'info', message: `Death confirmed for ${patient.name}` });
+  },
+
+  cancelCodeBlue: (patientId) => set({ codeBluePatient: null }),
 
   toasts: [],
   addToast: (toast) => {
@@ -88,4 +121,64 @@ export const useStore = create<AppState>((set) => ({
   removeToast: (id) => set((state) => ({
     toasts: state.toasts.filter(t => t.id !== id)
   })),
+
+  // Simulator Actions
+  simulateGradualDeath: (patientId) => {
+    const steps = 5;
+    let step = 0;
+    const interval = setInterval(() => {
+      const p = get().patients.find(p => p.patient_id === patientId);
+      if (!p || step >= steps) {
+        clearInterval(interval);
+        if (p) get().triggerCodeBlue(patientId);
+        return;
+      }
+
+      const factor = (steps - step) / steps;
+      const newVitals: VitalReading = {
+        ...p.vitals[0],
+        heart_rate: Math.round(p.vitals[0].heart_rate * factor),
+        map_pressure: Math.round(p.vitals[0].map_pressure * factor),
+        spo2: Math.round(p.vitals[0].spo2 * factor),
+        respiratory_rate: Math.round(p.vitals[0].respiratory_rate * factor),
+        gcs_score: Math.max(3, Math.round(p.vitals[0].gcs_score * factor)),
+        timestamp: new Date().toISOString()
+      };
+
+      get().updatePatient(patientId, { vitals: [newVitals, ...p.vitals.slice(0, 11)] });
+      step++;
+    }, 5000); // Progress every 5s for demo speed
+  },
+
+  simulateHardwareFailure: (patientId) => {
+    const p = get().patients.find(p => p.patient_id === patientId);
+    if (!p) return;
+    const failedVitals: VitalReading = {
+      ...p.vitals[0],
+      heart_rate: 0,
+      map_pressure: 0,
+      timestamp: new Date().toISOString()
+    };
+    get().updatePatient(patientId, { 
+      status: 'Hardware Failure', 
+      vitals: [failedVitals, ...p.vitals.slice(0, 11)] 
+    });
+    get().addToast({ type: 'warning', message: `Hardware Fault: ICU-D3 Sensor Dropout` });
+  },
+
+  simulateHardwareRecovery: (patientId) => {
+    const p = get().patients.find(p => p.patient_id === patientId);
+    if (!p) return;
+    const recoveredVitals: VitalReading = {
+      ...p.vitals[0],
+      heart_rate: 82,
+      map_pressure: 88,
+      timestamp: new Date().toISOString()
+    };
+    get().updatePatient(patientId, { 
+      status: 'Active', 
+      vitals: [recoveredVitals, ...p.vitals.slice(0, 11)] 
+    });
+    get().addToast({ type: 'success', message: `Sensors Restored: ICU-D3 Online` });
+  }
 }));

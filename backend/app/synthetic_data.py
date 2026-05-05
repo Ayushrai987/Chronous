@@ -9,81 +9,85 @@ def add_noise(val, scale=0.05):
     return val + np.random.normal(0, val * scale)
 
 def generate_synthetic_patients():
-    first_names = [
-        "Arjun", "Priya", "Rahul", "Ananya", "Vikram", "Sunita", "Rohan", "Kavita", 
-        "Sanjay", "Deepa", "Amit", "Meera", "Vijay", "Asha", "Rajesh", "Pooja",
-        "Anil", "Jyoti", "Manoj", "Shanti", "Ravi", "Lata", "Dinesh", "Usha",
-        "Kishore", "Rekha", "Suresh", "Seema", "Mohan", "Gita", "Ashok", "Sita",
-        "Ramesh", "Maya", "Sunil", "Anita", "Pankaj", "Ritu", "Harish", "Neelam"
-    ]
-    last_names = [
-        "Mehta", "Sharma", "Nair", "Iyer", "Gupta", "Verma", "Reddy", "Patel",
-        "Singh", "Joshi", "Kulkarni", "Deshmukh", "Malhotra", "Bose", "Chatterjee",
-        "Rao", "Menon", "Kapoor", "Khanna", "Trivedi", "Sarin", "Chopra"
-    ]
+    first_names_m = ["Aarav", "Arjun", "Rohan", "Vikram", "Sanjay", "Aditya", "Ishaan", "Vivek", "Anil", "Rajesh"]
+    first_names_f = ["Ananya", "Priya", "Neha", "Sneha", "Kavita", "Savitri", "Meena", "Deepa", "Sunita", "Ritu"]
+    last_names = ["Sharma", "Patel", "Gupta", "Singh", "Kumar", "Reddy", "Malhotra", "Menon", "Deshmukh", "Khanna"]
     
-    scenarios = [
-        {"desc": "Post-CABG Recovery", "risk": "STABLE"},
-        {"desc": "Septic Shock / Pneumonia", "risk": "CRITICAL"},
-        {"desc": "Acute Myocardial Infarction", "risk": "HIGH"},
-        {"desc": "Post-Trauma Observation", "risk": "WATCH"},
-        {"desc": "Chronic Kidney Disease / Dialysis", "risk": "WATCH"},
-        {"desc": "Gastrointestinal Bleeding", "risk": "HIGH"},
-        {"desc": "Neurological Observation (Stroke)", "risk": "STABLE"},
-        {"desc": "Post-Op Orthopedic Surgery", "risk": "STABLE"}
+    diagnoses = [
+        "Septic Shock", "ARDS", "AMI", "DKA", "Hypertensive Emergency", 
+        "AKI on CRRT", "Acute Liver Failure", "TBI post neurosurgery", "Pulmonary Embolism", 
+        "Decompensated Heart Failure", "Cerebral Malaria", "GI Bleed with hemorrhagic shock"
     ]
 
-    patients = []
+    patient_cohort = []
+
     for i in range(1, 109):
         pid = f"P{str(i).zfill(3)}"
-        abha_id = f"{random.randint(10, 99)}-{random.randint(1000, 9999)}-{random.randint(1000, 9999)}-{random.randint(1000, 9999)}"
-        fname = random.choice(first_names)
+        is_male = random.random() > 0.5
+        fname = random.choice(first_names_m if is_male else first_names_f)
         lname = random.choice(last_names)
-        scenario = random.choice(scenarios)
         age = random.randint(22, 85)
         bed = f"{random.choice(['A', 'B', 'C', 'D'])}{random.randint(101, 127)}"
         
+        # Override for specific cases
+        status = "active"
+        if i == 1:
+            name, age, sex, bed, dx, status = "Ramesh Agarwal", 71, "M", "ICU-B2", "Refractory Septic Shock", "deceased"
+        elif i == 2:
+            name, age, sex, bed, dx, status = "Savitri Desai", 84, "F", "ICU-C1", "Massive Pulmonary Embolism", "deceased"
+        elif i == 3:
+            name, age, sex, bed, dx, status = "Prakash Nambiar", 58, "M", "ICU-D3", "Post-Cardiac Surgery Day 2", "hardware_failure"
+        else:
+            name = f"{fname} {lname}"
+            sex = "M" if is_male else "F"
+            dx = random.choice(diagnoses)
+            if i > 93: status = "discharged"
+            elif i > 83: status = "transferred"
+
         patient = {
             "patient_id": pid,
-            "abha_id": abha_id,
-            "name": f"{fname} {lname}",
+            "name": name,
             "age": age,
-            "sex": random.choice(["M", "F"]),
+            "sex": sex,
             "bed_id": bed,
             "admission_time": (datetime.now() - timedelta(hours=random.randint(12, 168))).isoformat(),
-            "diagnosis": scenario["desc"],
-            "status": "active"
+            "diagnosis": dx,
+            "status": status
         }
         
-        # Initial 12-hour vitals block
         vitals_history = []
-        base_vitals = {
-            "heart_rate": 75 if scenario["risk"] == "STABLE" else 110 if scenario["risk"] == "CRITICAL" else 95,
-            "map_pressure": 85 if scenario["risk"] == "STABLE" else 60 if scenario["risk"] == "CRITICAL" else 70,
-            "spo2": 98 if scenario["risk"] == "STABLE" else 88 if scenario["risk"] == "CRITICAL" else 93,
-            "respiratory_rate": 16 if scenario["risk"] == "STABLE" else 28 if scenario["risk"] == "CRITICAL" else 22,
-            "temperature": 36.8 if scenario["risk"] == "STABLE" else 38.5 if scenario["risk"] == "CRITICAL" else 37.5,
-            "serum_lactate": 1.1 if scenario["risk"] == "STABLE" else 4.5 if scenario["risk"] == "CRITICAL" else 2.2,
-            "gcs_score": 15 if scenario["risk"] != "CRITICAL" else 11,
-            "urine_output": 50 if scenario["risk"] == "STABLE" else 20 if scenario["risk"] == "CRITICAL" else 35
-        }
+        base = {"hr": 80, "map": 85, "spo2": 98, "rr": 16, "temp": 37.0, "lac": 1.2, "gcs": 15, "uo": 50}
         
         for h in range(12):
-            v = {k: add_noise(v_base) for k, v_base in base_vitals.items()}
-            v["timestamp"] = (datetime.now() - timedelta(hours=12-h)).isoformat()
+            v = {k: add_noise(v_base) for k, v_base in {"heart_rate": base["hr"], "map_pressure": base["map"], "spo2": base["spo2"], "respiratory_rate": base["rr"], "temperature": base["temp"], "serum_lactate": base["lac"], "gcs_score": base["gcs"], "urine_output": base["uo"]}.items()}
+            
+            # Case specific vital trends
+            if status == "deceased" and i == 1: # Gradual
+                factor = (11 - h) / 11
+                v["heart_rate"] = 124 * factor
+                v["map_pressure"] = 65 * factor
+                v["spo2"] = 88 * factor
+            elif status == "deceased" and i == 2: # Sudden
+                if h >= 10: 
+                    v["heart_rate"] = 0; v["map_pressure"] = 0; v["spo2"] = 0
+            elif status == "hardware_failure" and h >= 9:
+                v["heart_rate"] = 0; v["map_pressure"] = 0
+
+            v["timestamp"] = (datetime.now() - timedelta(hours=11-h)).isoformat()
             vitals_history.append(v)
             
-        patient["baseline_stats"] = json.dumps(compute_baseline_stats(vitals_history))
-        patients.append((patient, vitals_history))
+        patient["baseline_stats"] = compute_baseline_stats(vitals_history)
+        patient_cohort.append((patient, vitals_history))
             
-    return patients
+    return patient_cohort
 
 def compute_baseline_stats(vitals: List[Dict]) -> Dict:
     features = ["heart_rate", "map_pressure", "spo2", "respiratory_rate",
                  "temperature", "serum_lactate", "gcs_score", "urine_output"]
     stats = {}
     for feat in features:
-        vals = [v[feat] for v in vitals]
+        vals = [v[feat] for v in vitals if v[feat] > 0] # Avoid zeros for baseline
+        if not vals: vals = [0]
         stats[feat] = {
             "mean": float(np.mean(vals)),
             "std": float(np.std(vals)) if np.std(vals) > 0 else 1.0
@@ -105,7 +109,6 @@ def normalize_vitals(vitals: List[Dict], baseline_stats: Dict) -> np.ndarray:
     return np.array(normalized, dtype=np.float32)
 
 def seed_demo_data():
-    """Seed the database with 108 Indian patients."""
     init_db()
     clear_all_data()
     patient_cohort = generate_synthetic_patients()

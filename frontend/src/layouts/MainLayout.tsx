@@ -1,113 +1,18 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { Activity, Users, UserPlus, BarChart2, Bell, FileText, Settings, LogOut, Plus, X } from 'lucide-react';
+import { Activity, Users, UserPlus, BarChart2, Bell, FileText, Settings, LogOut, MessageSquare, X, Send } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function MainLayout() {
-  const { role, logout, patients, logIntervention, addToast } = useStore();
+  const { role, logout, patients, addToast, codeBluePatient, confirmDeath, cancelCodeBlue } = useStore();
   const navigate = useNavigate();
-  const [showFAB, setShowFAB] = useState(false);
-  
-  // Intervention form state
-  const [selectedPatient, setSelectedPatient] = useState('');
-  const [interventionType, setInterventionType] = useState('Fluid Bolus');
-  const [interventionNotes, setInterventionNotes] = useState('');
+  const [showAssistant, setShowAssistant] = useState(false);
+  const [assistantQuery, setAssistantQuery] = useState('');
 
   const handleLogout = () => {
     logout();
     navigate('/');
-  };
-
-  const handleLogIntervention = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedPatient) return;
-    logIntervention(selectedPatient, interventionType, interventionNotes);
-    addToast({ type: 'success', message: 'Intervention logged successfully.' });
-    setShowFAB(false);
-    setInterventionNotes('');
-    setSelectedPatient('');
-  };
-
-  const [isListening, setIsListening] = useState(false);
-
-  const handleEmergencyDemo = () => {
-    // Play Medical Alarm Sound (Synthesized)
-    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const playAlarm = () => {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5);
-      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.5);
-    };
-
-    // Trigger alarm sequence
-    let count = 0;
-    const interval = setInterval(() => {
-      playAlarm();
-      addToast({ type: 'critical', message: `🚨 CRITICAL ALERT: WARD-WIDE ESCALATION DETECTED` });
-      count++;
-      if (count > 3) clearInterval(interval);
-    }, 600);
-  };
-
-  const handleVoice = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      addToast({ type: 'warning', message: 'Use Chrome for Voice Features.' });
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    
-    recognition.onstart = () => {
-      setIsListening(true);
-      addToast({ type: 'success', message: 'Chronos is listening...' });
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript.toLowerCase();
-      addToast({ type: 'success', message: `Query: "${transcript}"` });
-      
-      // Clinical Logic Engine
-      setTimeout(() => {
-        if (transcript.includes('risk') || transcript.includes('critical')) {
-          const criticalCount = patients.filter(p => p.risk_tier === 'CRITICAL').length;
-          addToast({ 
-            type: 'warning', 
-            message: `Chronos AI: Detecting ${criticalCount} patients in critical state. Recommendation: Prioritize Bed P002 and P003.` 
-          });
-        } else if (transcript.includes('arjun') || transcript.includes('mehta')) {
-          addToast({ 
-            type: 'success', 
-            message: "Chronos AI: Arjun Mehta is stable. Post-CABG recovery trending positive (Risk: 4.2%)." 
-          });
-        } else {
-          addToast({ 
-            type: 'success', 
-            message: "Chronos AI: Monitoring 108 patients. All edge neural streams active." 
-          });
-        }
-      }, 1000);
-
-      setIsListening(false);
-    };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-      addToast({ type: 'critical', message: 'Voice check failed. Ensure Mic is allowed in Browser.' });
-    };
-
-    recognition.onend = () => setIsListening(false);
-    recognition.start();
   };
 
   const navItems = [
@@ -120,17 +25,27 @@ export default function MainLayout() {
     { name: 'Settings', path: '/app/settings', icon: Settings },
   ];
 
+  const handleAssistantSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assistantQuery) return;
+    addToast({ type: 'info', message: `Chronos AI: Analyzing query "${assistantQuery}"...` });
+    setTimeout(() => {
+      addToast({ type: 'success', message: "Chronos AI: Current ward stability is 84%. Critical escalation likely in Bed ICU-B2." });
+    }, 1000);
+    setAssistantQuery('');
+  };
+
   return (
-    <div className="flex h-screen bg-[var(--bg-primary)] overflow-hidden">
+    <div className="flex h-screen bg-[#0c1117] overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-[260px] bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] flex flex-col shrink-0">
+      <aside className="w-[240px] bg-[#080c12] border-r border-white/5 flex flex-col shrink-0">
         <div className="p-6 flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center text-white shrink-0">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+          <div className="w-8 h-8 bg-[#4f83cc] rounded flex items-center justify-center text-white shrink-0">
+            <Activity size={20} />
           </div>
           <div>
-            <h1 className="font-bold text-white text-sm tracking-wide leading-tight">PROJECT CHRONOS</h1>
-            <p className="text-[10px] text-gray-400">ICU Early Warning System</p>
+            <h1 className="font-bold text-white text-[13px] tracking-[0.1em] leading-tight sidebar-logo">CHRONOS</h1>
+            <p className="text-[10px] text-[#8899aa] uppercase font-bold tracking-tighter">Clinical OS</p>
           </div>
         </div>
 
@@ -141,162 +56,174 @@ export default function MainLayout() {
               to={item.path}
               end={item.path === '/app'}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${
+                `flex items-center gap-3 px-3 py-2.5 rounded text-xs font-bold transition-all ${
                   isActive
-                    ? 'bg-blue-500/10 text-blue-400 relative before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:bg-blue-500 before:rounded-r-md'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                    ? 'bg-[#4f83cc]/10 text-[#4f83cc] border-r-2 border-[#4f83cc]'
+                    : 'text-[#8899aa] hover:text-[#e2e8f0] hover:bg-white/5'
                 }`
               }
             >
-              <item.icon size={18} />
+              <item.icon size={16} />
               {item.name}
             </NavLink>
           ))}
         </nav>
 
-        {/* User Profile */}
-        <div className="p-4 border-t border-[var(--border-subtle)]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center text-sm font-bold text-white shrink-0">
-              DR
+        {/* Sidebar Bottom */}
+        <div className="p-4 border-t border-white/5 flex flex-col gap-4">
+          {/* Status Indicator */}
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-2 h-2 rounded-full bg-[#16a34a]"></div>
+            <span className="text-[10px] font-bold text-[#8899aa] uppercase tracking-wider">System Healthy</span>
+          </div>
+
+          {/* Assistant Toggle */}
+          <button 
+            onClick={() => setShowAssistant(!showAssistant)}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded text-xs font-bold transition-all ${
+              showAssistant ? 'bg-[#4f83cc] text-white' : 'bg-white/5 text-[#8899aa] hover:text-[#e2e8f0]'
+            }`}
+          >
+            <MessageSquare size={16} />
+            Chronos Assistant
+          </button>
+
+          {/* User */}
+          <div className="flex items-center gap-3 px-2 pt-2">
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+              AM
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">Dr. Arjun Mehta</p>
-              <span className="inline-block px-2 py-0.5 mt-0.5 rounded-full bg-white/10 text-[10px] text-gray-300">
-                {role || 'Attending'}
-              </span>
+              <p className="text-[11px] font-bold text-white truncate">Dr. Arjun Mehta</p>
+              <p className="text-[9px] text-[#8899aa] uppercase font-bold">{role || 'Physician'}</p>
             </div>
-            <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-white transition-colors hover:scale-95 active:scale-90">
-              <LogOut size={18} />
+            <button onClick={handleLogout} className="text-[#8899aa] hover:text-white">
+              <LogOut size={16} />
             </button>
           </div>
-        </div>
-
-        {/* Emergency Demo Mode (Hidden in Plain Sight) */}
-        <div className="mx-4 mb-4">
-           <button 
-             onClick={handleEmergencyDemo}
-             className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-xl text-[10px] font-black text-red-400 uppercase tracking-widest transition-all group"
-           >
-             <span className="group-hover:hidden">System Normal</span>
-             <span className="hidden group-hover:inline">🚨 Trigger Emergency Demo</span>
-           </button>
-        </div>
-
-        {/* AI Clinical Assistant (Hackathon Innovation) */}
-        <div className="mx-4 mb-6 p-4 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-white/5 relative">
-           <div className="flex items-center gap-2 mb-3">
-              <div className="p-1.5 bg-indigo-500/20 rounded-lg">
-                <Activity size={12} className={isListening ? "text-red-400 animate-ping" : "text-indigo-400"} />
-              </div>
-              <h4 className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">Chronos Assistant</h4>
-           </div>
-           <div className="text-[11px] text-gray-400 leading-relaxed italic mb-3">
-             "Ask me about ward trends or specific patient risks."
-           </div>
-           <div className="relative">
-              <input 
-                type="text" 
-                placeholder={isListening ? "Listening..." : "Talk to Chronos..."} 
-                onKeyDown={(e: any) => {
-                  if (e.key === 'Enter') {
-                    const q = e.target.value.toLowerCase();
-                    addToast({ type: 'success', message: `Query: "${q}"` });
-                    e.target.value = '';
-                    setTimeout(() => {
-                      if (q.includes('risk') || q.includes('critical')) {
-                        addToast({ type: 'warning', message: "Chronos AI: Multiple high-risk trajectories detected. Scaling edge inference." });
-                      } else {
-                        addToast({ type: 'success', message: "Chronos AI: Query received. Analyzing longitudinal vitals..." });
-                      }
-                    }, 800);
-                  }
-                }}
-                className={`w-full bg-black/20 border rounded-xl pl-3 pr-10 py-2 text-[10px] text-white focus:outline-none transition-all ${
-                  isListening ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-white/10 focus:border-indigo-500/50'
-                }`}
-              />
-              <button 
-                onClick={handleVoice}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 transition-colors ${isListening ? 'text-red-400' : 'text-indigo-400 hover:text-white'}`}
-                title="Voice Activation"
-              >
-                <div className={`w-2 h-2 rounded-full absolute -top-0.5 -right-0.5 ${isListening ? 'bg-red-500 animate-pulse' : 'bg-red-500'}`} />
-                <Activity size={14} />
-              </button>
-           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col relative min-w-0 overflow-hidden">
+      <main className="flex-1 flex flex-col relative min-w-0 overflow-hidden bg-[#0c1117]">
         <Outlet />
-      </main>
 
-      {/* Floating Action Button */}
-      <button 
-        onClick={() => setShowFAB(true)}
-        className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 hover:bg-blue-500 text-white rounded-full shadow-lg shadow-blue-500/30 flex items-center justify-center transition-all hover:scale-105 active:scale-95 z-40"
-      >
-        <Plus size={24} />
-      </button>
-
-      {/* Intervention Modal */}
-      <AnimatePresence>
-        {showFAB && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowFAB(false)}
-          >
+        {/* SECTION 5: CODE BLUE GLOBAL OVERLAY */}
+        <AnimatePresence>
+          {codeBluePatient && (
             <motion.div 
-              initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
-              className="glass-card w-full max-w-md p-6 bg-[#0a0f25]/90 border border-white/10 shadow-2xl"
-              onClick={e => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] bg-[#0a1628] flex flex-col items-center justify-center p-8 text-center"
             >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-white">Log Clinical Intervention</h2>
-                <button onClick={() => setShowFAB(false)} className="text-gray-400 hover:text-white">
-                  <X size={24} />
-                </button>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,131,204,0.1),transparent)] animate-pulse" />
+              
+              <motion.h1 
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ repeat: Infinity, duration: 1 }}
+                className="text-8xl font-black text-white tracking-tighter mb-4"
+              >
+                CODE BLUE
+              </motion.h1>
+              
+              <p className="text-4xl font-bold text-blue-400 mb-12">
+                BED {patients.find(p => p.patient_id === codeBluePatient)?.bed_id || 'N/A'} — {patients.find(p => p.patient_id === codeBluePatient)?.name || 'Unknown Patient'}
+              </p>
+
+              <div className="w-full max-w-4xl grid grid-cols-2 gap-8 mb-12 text-left">
+                <div className="glass-card p-6 border-blue-500/30">
+                  <h3 className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-4">Vital Integrity Status</h3>
+                  <div className="space-y-3">
+                    <VitalRow label="Heart Rate" value="0" status="FLATLINE" />
+                    <VitalRow label="MAP Pressure" value="0" status="FLATLINE" />
+                    <VitalRow label="SpO2" value="0" status="FLATLINE" />
+                    <VitalRow label="Resp. Rate" value="0" status="FLATLINE" />
+                  </div>
+                </div>
+                <div className="glass-card p-6 border-blue-500/30">
+                  <h3 className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-4">Escalation Log</h3>
+                  <div className="text-[11px] font-mono text-gray-400 space-y-2">
+                    <p>[00:00] All-zero vitals detected</p>
+                    <p>[00:01] Hardware fault check: PASSED (Multivariate confirmation)</p>
+                    <p>[00:02] Consecutive reading confirmation: SUCCESS</p>
+                    <p className="text-blue-400 animate-pulse">[00:03] CODE BLUE TRIGGERED — Escalating to Ward Terminals</p>
+                  </div>
+                </div>
               </div>
 
-              <form onSubmit={handleLogIntervention} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase">Patient</label>
-                  <select required value={selectedPatient} onChange={e => setSelectedPatient(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white">
-                    <option value="" disabled>Select Patient</option>
-                    {patients.map(p => <option key={p.patient_id} value={p.patient_id}>{p.bed_id} - {p.name}</option>)}
-                  </select>
+              <div className="flex gap-6">
+                <button 
+                  onClick={() => {
+                    const note = prompt("Enter clinical confirmation note:");
+                    if (note) confirmDeath(codeBluePatient, note);
+                  }}
+                  className="px-12 py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-lg text-xl shadow-2xl transition-all active:scale-95"
+                >
+                  CONFIRM DEATH
+                </button>
+                <button 
+                  onClick={() => cancelCodeBlue(codeBluePatient)}
+                  className="px-12 py-4 bg-white/10 hover:bg-white/20 text-white font-black rounded-lg text-xl transition-all"
+                >
+                  FALSE ALARM / RECOVERY
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Assistant Floating Panel */}
+        <AnimatePresence>
+          {showAssistant && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              className="absolute bottom-6 left-6 w-80 bg-[#131920] border border-white/10 rounded-lg shadow-2xl z-50 flex flex-col"
+            >
+              <div className="p-4 border-b border-white/5 flex justify-between items-center bg-[#4f83cc]/5">
+                <div className="flex items-center gap-2">
+                  <Activity size={14} className="text-[#4f83cc]" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">Chronos Assistant</span>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase">Intervention Type</label>
-                  <select value={interventionType} onChange={e => setInterventionType(e.target.value)} className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white">
-                    <option>Fluid Bolus</option>
-                    <option>Vasopressor Initiation</option>
-                    <option>Antibiotic Administration</option>
-                    <option>Oxygen Adjustment</option>
-                    <option>Other</option>
-                  </select>
+                <button onClick={() => setShowAssistant(false)} className="text-[#8899aa] hover:text-white">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-4 h-48 overflow-y-auto flex flex-col gap-3">
+                <div className="bg-white/5 p-3 rounded-lg text-[11px] text-[#e2e8f0] max-w-[85%] self-start border border-white/5">
+                  "Hello Dr. Mehta. I am monitoring 108 patients. Ask me for a risk summary or specific intervention advice."
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1 uppercase">Clinical Notes</label>
-                  <textarea 
-                    required
-                    value={interventionNotes}
-                    onChange={e => setInterventionNotes(e.target.value)}
-                    placeholder="Enter details..." 
-                    className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-white resize-none h-24"
-                  />
-                </div>
-                <button type="submit" className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors shadow-lg shadow-blue-500/20 active:scale-[0.98]">
-                  Log Action
+              </div>
+              <form onSubmit={handleAssistantSubmit} className="p-3 border-t border-white/5 flex gap-2">
+                <input 
+                  type="text" 
+                  value={assistantQuery}
+                  onChange={e => setAssistantQuery(e.target.value)}
+                  placeholder="Type a clinical query..." 
+                  className="flex-1 bg-black/20 border border-white/5 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#4f83cc]/50"
+                />
+                <button type="submit" className="p-1.5 bg-[#4f83cc] text-white rounded hover:bg-[#3d6ba7]">
+                  <Send size={14} />
                 </button>
               </form>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+      </main>
+    </div>
+  );
+}
+
+function VitalRow({ label, value, status }: { label: string, value: string, status: string }) {
+  return (
+    <div className="flex justify-between items-center py-2 border-b border-white/5">
+      <span className="text-xs text-gray-400 font-bold uppercase">{label}</span>
+      <div className="flex items-center gap-4">
+        <span className="text-2xl font-black text-white">{value}</span>
+        <span className="text-[10px] font-black text-red-500 animate-pulse">{status}</span>
+      </div>
     </div>
   );
 }
