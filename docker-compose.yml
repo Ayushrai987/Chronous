@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # FastAPI Backend with ML Models
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/models:/app/models
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    networks:
+      - chronos-net
+
+  # React Frontend served by nginx
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - chronos-net
+
+networks:
+  chronos-net:
+    driver: bridge

@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: #050816;
+  --color-bg-secondary: #0a0f25;
+  --color-bg-accent: rgba(255, 255, 255, 0.03);
+  
+  --color-tier-critical: #ff3b3b;
+  --color-tier-high: #ff8c00;
+  --color-tier-watch: #ffcc00;
+  --color-tier-stable: #00d97e;
+  --color-tier-info: #3b82f6;
+
+  --font-outfit: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+:root {
+  --bg-primary: #050816;
+  --bg-secondary: #0a0f25;
+  --bg-sidebar: #070a1a;
+  --bg-accent: rgba(255, 255, 255, 0.03);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+}
+
+@layer base {
+  body {
+    @apply bg-bg-primary text-white font-outfit antialiased overflow-hidden h-screen w-screen;
+  }
+}
+
+/* Custom Utilities */
+@layer components {
+  .glass-panel {
+    @apply bg-[rgba(10,15,37,0.7)] backdrop-blur-3xl border border-white/10 shadow-2xl;
+  }
+
+  .glass-card {
+    @apply bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl transition-all duration-300;
+  }
+
+  .glass-card:hover {
+    @apply bg-white/[0.05] border-white/20 -translate-y-0.5 shadow-[0_12px_40px_rgba(0,0,0,0.4)];
+  }
+
+  .status-badge {
+    @apply px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all;
+  }
+
+  .status-badge-critical, .CRITICAL { @apply bg-red-500/20 text-red-400 border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.1)]; }
+  .status-badge-high, .HIGH { @apply bg-orange-500/20 text-orange-400 border-orange-500/30; }
+  .status-badge-watch, .WATCH { @apply bg-yellow-500/20 text-yellow-400 border-yellow-500/30; }
+  .status-badge-stable, .STABLE { @apply bg-emerald-500/20 text-emerald-400 border-emerald-500/30; }
+
+  .btn-primary {
+    @apply px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-blue-900/20;
+  }
+
+  .input-field {
+    @apply bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-blue-500 transition-all;
+  }
+}
+
+/* Custom Styles (Non-Tailwind) */
+.mesh-gradient-bg {
+  background-color: #050816;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(255, 59, 59, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(0, 217, 126, 0.05) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 5px rgba(255, 59, 59, 0.2); }
+  50% { box-shadow: 0 0 20px rgba(255, 59, 59, 0.5); }
+  100% { box-shadow: 0 0 5px rgba(255, 59, 59, 0.2); }
+}
+
+.pulse-critical {
+  animation: pulse-glow 2s infinite;
+}
