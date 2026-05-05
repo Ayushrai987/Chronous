@@ -47,6 +47,17 @@ interface AppState {
   addToast: (toast: Omit<Toast, 'id'>) => void;
   removeToast: (id: string) => void;
   
+  // Shadow Testing
+  shadowMode: boolean;
+  toggleShadowMode: () => void;
+  patientAssessments: Record<string, string>;
+  submitAssessment: (patientId: string, assessment: string) => void;
+
+  // Integration
+  integrationStatus: Record<string, 'Connected' | 'Simulated' | 'Not Configured'>;
+  hl7Logs: { id: string; msg: string; timestamp: string }[];
+  addHl7Log: (msg: string) => void;
+
   // Simulator Actions
   simulateGradualDeath: (patientId: string) => void;
   simulateHardwareFailure: (patientId: string) => void;
@@ -180,5 +191,27 @@ export const useStore = create<AppState>((set, get) => ({
       vitals: [recoveredVitals, ...p.vitals.slice(0, 11)] 
     });
     get().addToast({ type: 'success', message: `Sensors Restored: ICU-D3 Online` });
-  }
+  },
+
+  // Shadow Testing
+  shadowMode: false,
+  toggleShadowMode: () => set((state) => ({ shadowMode: !state.shadowMode })),
+  patientAssessments: {},
+  submitAssessment: (patientId, assessment) => set((state) => ({
+    patientAssessments: { ...state.patientAssessments, [patientId]: assessment }
+  })),
+
+  // Integration
+  integrationStatus: {
+    'HL7 v2 Listener': 'Simulated',
+    'FHIR R4 Endpoint': 'Simulated',
+    'Epic SMART on FHIR': 'Simulated',
+    'Cerner Millennium API': 'Simulated',
+    'Generic HIS REST Connector': 'Simulated'
+  },
+  hl7Logs: [],
+  addHl7Log: (msg) => set((state) => {
+    const newLogs = [{ id: Math.random().toString(36).substring(7), msg, timestamp: new Date().toLocaleTimeString() }, ...state.hl7Logs];
+    return { hl7Logs: newLogs.slice(0, 50) };
+  })
 }));

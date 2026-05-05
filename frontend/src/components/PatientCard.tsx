@@ -12,6 +12,48 @@ interface PatientCardProps {
 export default function PatientCard({ patient }: PatientCardProps) {
   const { codeBluePatient, confirmDeath } = useStore();
   const navigate = useNavigate();
+  const { shadowMode } = useStore();
+
+  const latestVitals = patient.vitals[0];
+
+  // SOLUTION 1: Model Confidence Calculation
+  const trainingDist: any = {
+    heart_rate: { mean: 82, std: 14 },
+    map_pressure: { mean: 85, std: 15 },
+    spo2: { mean: 97, std: 2 },
+    respiratory_rate: { mean: 18, std: 4 },
+    temperature: { mean: 37, std: 0.8 },
+    lactate: { mean: 1.5, std: 1.0 },
+    gcs_score: { mean: 14, std: 2 },
+    urine_output: { mean: 50, std: 20 }
+  };
+
+  const getZScore = (val: number, key: string) => {
+    const dist = trainingDist[key];
+    if (!dist) return 0;
+    return Math.abs((val - dist.mean) / dist.std);
+  };
+
+  const vitalKeys = ['heart_rate', 'map_pressure', 'spo2', 'respiratory_rate', 'temperature', 'lactate', 'gcs_score', 'urine_output'];
+  const outliers = vitalKeys.filter(key => getZScore((latestVitals as any)[key], key) > 2).length;
+
+  let confidence: { label: string; color: string } = { label: 'High Confidence', color: '#10b981' };
+  if (outliers >= 5) {
+    confidence = { label: 'Low Confidence — Population Mismatch', color: '#f97316' };
+  } else if (outliers >= 2) {
+    confidence = { label: 'Moderate Confidence — Atypical', color: '#f59e0b' };
+  }
+
+  // SOLUTION 2 & 4: Trend and Contradiction Detection
+  const hasSpO2Contradiction = latestVitals.spo2 < 85 && latestVitals.heart_rate > 60 && latestVitals.respiratory_rate < 25 && latestVitals.map_pressure > 65;
+  
+  // Trend Confirmation (last 3 readings)
+  const trendSegments = patient.vitals.slice(0, 3).map((v, i, arr) => {
+    if (i === arr.length - 1) return 'neutral';
+    const next = arr[i + 1];
+    return v.heart_rate > next.heart_rate || v.map_pressure < next.map_pressure ? 'red' : 'green';
+  }).reverse();
+
   const tierColor = getTierColor(patient.risk_tier)
   const crashProb = (patient.crash_probability * 100).toFixed(1)
   const sepsisProb = ((patient.sepsis_probability || 0) * 100).toFixed(1)
@@ -141,6 +183,14 @@ export default function PatientCard({ patient }: PatientCardProps) {
         </span>
       </div>
 
+      {/* SOLUTION 1: Confidence Indicator */}
+      <div className="flex items-center gap-1.5 mb-3">
+        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: confidence.color }}></div>
+        <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: confidence.color }}>
+          {confidence.label}
+        </span>
+      </div>
+
       {/* PROBLEM 2 FIX: 2x2 Vital Chips Grid */}
       <div className="grid grid-cols-2 gap-2 mb-4">
         {[
@@ -156,13 +206,12 @@ export default function PatientCard({ patient }: PatientCardProps) {
         ))}
       </div>
 
-      {/* Probabilities Section */}
-      <div className="flex items-end gap-4 mb-4">
+      <div className="flex items-end gap-4 mb-2">
         <div className="flex flex-col">
           <span className="text-[28px] font-black tabular-nums tracking-tighter leading-none" style={{ color: tierColor }}>
             {crashProb}%
           </span>
-          <span className="text-[9px] text-[#8899aa] font-bold uppercase mt-1">Crash</span>
+          <span className="text-[9px] text-[#8899aa] font-bold uppercase mt-1">Crash Risk</span>
         </div>
         <div className="flex flex-col pb-0.5">
           <span className="text-[14px] font-bold text-[#e2e8f0] leading-none">
@@ -170,6 +219,21 @@ export default function PatientCard({ patient }: PatientCardProps) {
           </span>
           <span className="text-[8px] text-[#8899aa] font-bold uppercase mt-1">Sepsis</span>
         </div>
+        {hasSpO2Contradiction && (
+          <div className="ml-auto bg-amber-500/20 text-amber-500 text-[8px] font-black px-2 py-0.5 rounded border border-amber-500/30 animate-pulse">
+            SENSOR CONTRADICTION
+          </div>
+        )}
+      </div>
+
+      {/* SOLUTION 4: Trend Confirmation Bar */}
+      <div className="mb-4">
+        <div className="flex gap-1 h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+          {trendSegments.map((type, i) => (
+            <div key={i} className={`flex-1 ${type === 'red' ? 'bg-red-500' : type === 'green' ? 'bg-emerald-500' : 'bg-gray-600'}`} />
+          ))}
+        </div>
+        <p className="text-[8px] text-[#8899aa] font-bold mt-1 uppercase">Alert fires at 3/3 persistence</p>
       </div>
 
       {/* PROBLEM 2 FIX: Stacked Sparklines */}
@@ -200,6 +264,13 @@ export default function PatientCard({ patient }: PatientCardProps) {
       {/* Hover Element */}
       <div className="absolute bottom-2 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[10px] font-bold text-[#4f83cc] pointer-events-none">
         View Details <ChevronRight size={12} />
+      </div>
+
+      {/* SOLUTION 5: Compliance Disclaimer */}
+      <div className="mt-3 pt-2 border-t border-white/5">
+        <p className="text-[8px] text-[#556677] italic font-medium">
+          Clinical Decision Support — Physician judgment required.
+        </p>
       </div>
 
       {isHardwareFault && (

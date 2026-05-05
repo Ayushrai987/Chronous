@@ -184,13 +184,29 @@ export default function CausalGraph({ edges }: CausalGraphProps) {
     <div>
       <svg ref={svgRef} className="w-full" style={{ height: '280px' }} />
       
-      {/* Active cascade labels */}
-      <div className="flex flex-wrap gap-2 mt-3">
-        {displayEdges.filter(e => e.active).map((e, i) => (
-          <div key={i} className="text-[10px] px-2 py-1 rounded bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.2)] text-[#fca5a5]">
-            {e.source} → {e.target}: {e.label}
-          </div>
-        ))}
+      {/* SOLUTION 6: Active cascade labels with Clinical Pathway Text */}
+      <div className="flex flex-col gap-3 mt-4">
+        {displayEdges.filter(e => e.active).map((e, i) => {
+          const key = `${e.source}->${e.target}`;
+          const pathwayText = {
+            'Heart Rate->MAP': "Compensatory Heart Rate rise in response to falling MAP indicates the cardiovascular system is attempting to maintain cardiac output — this compensation will fail within 2 to 4 hours without intervention.",
+            'MAP->SpO2': "Reduced peripheral perfusion causing microvascular collapse — leading to false SpO2 readings and systemic tissue hypoxia.",
+            'Serum Lactate->MAP': "Serum Lactate rising indicates anaerobic metabolism — a direct marker of tissue hypoperfusion leading to MAP collapse.",
+            'SpO2->Respiratory Rate': "Hypoxemia triggering compensatory tachypnea — indicates impending respiratory failure and increased work of breathing.",
+            'MAP->Urine Output': "Renal hypoperfusion from sustained low MAP leading to acute kidney injury and oliguria."
+          }[key] || `${e.source} is driving changes in ${e.target} — clinical monitoring recommended.`;
+
+          return (
+            <div key={i} className="bg-white/5 border border-white/5 rounded-lg p-3 flex gap-4 items-start">
+              <div className="text-[10px] px-2 py-1 rounded bg-red-500/10 border border-red-500/20 text-red-400 font-black shrink-0">
+                {e.source} → {e.target}
+              </div>
+              <p className="text-[11px] text-[#8899aa] leading-relaxed italic">
+                {pathwayText}
+              </p>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
