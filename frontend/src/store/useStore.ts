@@ -62,6 +62,8 @@ interface AppState {
   simulateGradualDeath: (patientId: string) => void;
   simulateHardwareFailure: (patientId: string) => void;
   simulateHardwareRecovery: (patientId: string) => void;
+  addPatient: (patient: Patient) => void;
+  markAlertLogged: (alertId: string) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -213,5 +215,13 @@ export const useStore = create<AppState>((set, get) => ({
   addHl7Log: (msg) => set((state) => {
     const newLogs = [{ id: Math.random().toString(36).substring(7), msg, timestamp: new Date().toLocaleTimeString() }, ...state.hl7Logs];
     return { hl7Logs: newLogs.slice(0, 50) };
-  })
+  }),
+
+  addPatient: (patient) => set((state) => ({
+    patients: [patient, ...state.patients]
+  })),
+
+  markAlertLogged: (alertId) => set((state) => ({
+    alerts: state.alerts.map(a => a.id === alertId ? { ...a, intervened: true } : a)
+  }))
 }));
