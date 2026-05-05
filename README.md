@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  🌎 <a href="#">Live Demo</a> • 
+  🌎 <a href="https://chronous-sooty.vercel.app/app">Live Demo</a> • 
   📖 <a href="#system-architecture">Documentation</a> • 
   <!-- 🚀 <a href="#-getting-started">Getting Started</a> •  -->
   👥 <a href="#-team--contributions">Team</a>
