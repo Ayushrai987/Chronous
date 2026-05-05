@@ -1,18 +1,18 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  --color-bg-primary: #0c1117;
-  --color-bg-secondary: #131920;
-  --color-bg-accent: rgba(255, 255, 255, 0.03);
-  
-  --color-tier-critical: #dc2626;
-  --color-tier-high: #d97706;
-  --color-tier-watch: #ca8a04;
-  --color-tier-stable: #16a34a;
-  --color-tier-info: #4f83cc;
-
-  --font-outfit: "Outfit", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+@layer base {
+  :root {
+    --bg-primary: #0c1117;
+    --bg-secondary: #131920;
+    --bg-sidebar: #080c12;
+    --bg-accent: rgba(255, 255, 255, 0.03);
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --text-primary: #e2e8f0;
+    --text-secondary: #8899aa;
+    --accent-blue: #4f83cc;
+  }
 }
 
 :root {
