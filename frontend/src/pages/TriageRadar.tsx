@@ -78,7 +78,7 @@ export default function TriageRadar() {
       </header>
 
       {/* PROBLEM 4 FIX: Compact Stats Bar */}
-      <div className="flex flex-row items-center gap-8 px-6 py-4 bg-[#131920] border border-white/5 rounded-lg max-h-[70px] overflow-hidden shrink-0">
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 px-6 py-4 bg-[#131920] border border-white/5 rounded-lg max-h-none lg:max-h-[70px] overflow-hidden shrink-0">
         <StatItem title="Total Census" value={stats.total} color="bg-[#4f83cc]" />
         <StatItem title="Critical" value={stats.critical} color="bg-[#dc2626]" />
         <StatItem title="High Risk" value={stats.high} color="bg-[#d97706]" />
@@ -114,23 +114,23 @@ export default function TriageRadar() {
       </div>
 
       {/* BOTTOM ACTION BAR */}
-      <div className="shrink-0 flex justify-between items-center px-5 py-3 bg-[#131920] border border-white/5 rounded-lg">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 text-[11px] font-bold text-[#6b7280] uppercase tracking-wider">
+      <div className="shrink-0 flex flex-col md:flex-row justify-between items-center px-5 py-4 md:py-3 bg-[#131920] border border-white/5 rounded-lg gap-4 md:gap-0">
+        <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 md:gap-6">
+          <div className="flex items-center gap-2 text-[9px] md:text-[11px] font-bold text-[#6b7280] uppercase tracking-wider">
             <div className="w-2 h-2 rounded-full bg-[#16a34a]"></div>
-            SYSTEM STATUS: OPERATIONAL
+            <span className="whitespace-nowrap">SYSTEM STATUS: OPERATIONAL</span>
           </div>
-          <div className="flex items-center gap-2 text-[11px] font-bold text-[#6b7280] uppercase tracking-wider">
-            Model: Chronos-LSTM v2.4
+          <div className="flex items-center gap-2 text-[9px] md:text-[11px] font-bold text-[#6b7280] uppercase tracking-wider">
+            <span className="whitespace-nowrap">Model: Chronos-LSTM v2.4</span>
           </div>
-          <div className="flex items-center gap-2 text-[11px] font-bold text-[#6b7280] uppercase tracking-wider">
+          <div className="hidden sm:flex items-center gap-2 text-[9px] md:text-[11px] font-bold text-[#6b7280] uppercase tracking-wider">
             <Clock size={12} />
-            Next Inference in 4m
+            <span className="whitespace-nowrap">Next Inference in 4m</span>
           </div>
         </div>
         <button 
           onClick={() => navigate('/app/add-patient')}
-          className="px-4 py-1.5 bg-[#4f83cc] hover:bg-[#3d6ba7] text-white rounded-md text-xs font-bold transition-all"
+          className="w-full md:w-auto px-6 py-2 bg-[#4f83cc] hover:bg-[#3d6ba7] text-white rounded-md text-xs font-bold transition-all shadow-xl"
         >
           Add Patient
         </button>

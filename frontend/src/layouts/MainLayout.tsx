@@ -8,6 +8,7 @@ export default function MainLayout() {
   const { role, logout, patients, addToast, codeBluePatient, confirmDeath, cancelCodeBlue } = useStore();
   const navigate = useNavigate();
   const [showAssistant, setShowAssistant] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [assistantQuery, setAssistantQuery] = useState('');
 
   const handleLogout = () => {
@@ -37,8 +38,8 @@ export default function MainLayout() {
 
   return (
     <div className="flex h-screen bg-[#0c1117] overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-[240px] bg-[#080c12] border-r border-white/5 flex flex-col shrink-0">
+      {/* Sidebar - Desktop */}
+      <aside className="hidden lg:flex w-[240px] bg-[#080c12] border-r border-white/5 flex-col shrink-0">
         <div className="p-6 flex items-center gap-3">
           <div className="w-8 h-8 bg-[#4f83cc] rounded flex items-center justify-center text-white shrink-0">
             <Activity size={20} />
@@ -104,8 +105,86 @@ export default function MainLayout() {
         </div>
       </aside>
 
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {showMobileMenu && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMobileMenu(false)}
+              className="fixed inset-0 bg-black/60 z-[60] lg:hidden"
+            />
+            <motion.aside 
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 w-[240px] bg-[#080c12] z-[70] lg:hidden flex flex-col border-r border-white/10"
+            >
+              <div className="p-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-[#4f83cc] rounded flex items-center justify-center text-white shrink-0">
+                    <Activity size={20} />
+                  </div>
+                  <div>
+                    <h1 className="font-bold text-white text-[13px] tracking-[0.1em] leading-tight sidebar-logo">CHRONOS</h1>
+                    <p className="text-[10px] text-[#8899aa] uppercase font-bold tracking-tighter">Clinical OS</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowMobileMenu(false)} className="text-[#8899aa] hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <nav className="flex-1 px-3 py-4 space-y-1">
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.name}
+                    to={item.path}
+                    onClick={() => setShowMobileMenu(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2.5 rounded text-xs font-bold transition-all ${
+                        isActive
+                          ? 'bg-[#4f83cc]/10 text-[#4f83cc]'
+                          : 'text-[#8899aa] hover:text-[#e2e8f0]'
+                      }`
+                    }
+                  >
+                    <item.icon size={16} />
+                    {item.name}
+                  </NavLink>
+                ))}
+              </nav>
+
+              <div className="p-4 border-t border-white/5 flex flex-col gap-4">
+                <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded text-xs font-bold text-red-400 hover:bg-red-500/10">
+                  <LogOut size={16} /> Logout
+                </button>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative min-w-0 overflow-hidden bg-[#0c1117]">
+        {/* Mobile Header Toggle */}
+        <div className="lg:hidden p-4 border-b border-white/5 flex items-center justify-between bg-[#080c12]">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-[#4f83cc] rounded flex items-center justify-center text-white shrink-0">
+              <Activity size={20} />
+            </div>
+            <h1 className="font-bold text-white text-xs tracking-widest">CHRONOS</h1>
+          </div>
+          <button 
+            onClick={() => setShowMobileMenu(true)}
+            className="p-2 text-[#8899aa] hover:text-white bg-white/5 rounded"
+          >
+            <Activity size={20} />
+          </button>
+        </div>
         <Outlet />
 
         {/* SECTION 5: CODE BLUE GLOBAL OVERLAY */}

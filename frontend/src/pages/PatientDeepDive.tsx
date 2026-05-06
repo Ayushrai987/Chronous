@@ -378,7 +378,7 @@ export default function PatientDeepDive() {
         opacity: 1,
         backgroundColor: isDemo && demoProbability >= 0.75 ? 'rgba(220,38,38,0.04)' : '#0c1117'
       }} 
-      className="h-full flex flex-col p-8 overflow-y-auto transition-colors duration-1000"
+      className="h-full flex flex-col p-4 sm:p-8 overflow-y-auto transition-colors duration-1000"
     >
       {isDemo && demoProbability >= 0.75 && (
         <motion.div 
@@ -437,9 +437,71 @@ export default function PatientDeepDive() {
         </div>
       </header>
 
-      <div className="grid grid-cols-12 gap-8 mb-8 shrink-0">
+      <div className="grid grid-cols-12 gap-6 lg:gap-8 mb-8 shrink-0">
+        {/* Main Section: Charts and Vitals - First on Mobile, Right on Desktop */}
+        <div className="col-span-12 lg:col-span-8 lg:order-last flex flex-col gap-6">
+          <div className="glass-card p-4 sm:p-8 border border-white/5 shadow-2xl flex-1 flex flex-col min-h-[400px]">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+              <div className="flex bg-white/5 p-1 rounded-lg border border-white/10 w-full sm:w-auto">
+                {['Vitals', 'Labs', 'Imaging'].map(tab => (
+                  <button key={tab} onClick={() => setActiveTab(tab as any)} className={`flex-1 sm:flex-none px-4 sm:px-6 py-2 rounded-md text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-white/10 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}>{tab}</button>
+                ))}
+              </div>
+              <button onClick={() => setSimulationMode(!simulationMode)} className={`w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-2 rounded-lg font-bold text-[10px] sm:text-xs transition-all border ${simulationMode ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-gray-400'}`}>
+                <FlaskConical size={14} /> {simulationMode ? 'SIMULATION ACTIVE' : 'DIGITAL TWIN SIMULATOR'}
+              </button>
+            </div>
+            <div className="flex-1 w-full min-h-[250px] sm:min-h-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                  <Tooltip contentStyle={{ background: 'rgba(10, 15, 37, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' }} />
+                  <ReferenceLine x="0h" stroke="white" strokeDasharray="5 5" />
+                  <Line type="monotone" dataKey="hr" name="HR" stroke="#ef4444" strokeWidth={3} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="map" name="MAP" stroke="#3b82f6" strokeWidth={3} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="spo2" name="SpO2" stroke="#10b981" strokeWidth={3} dot={false} isAnimationActive={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* SOLUTION 2: Signal Quality Panel */}
+          <div className="glass-card p-4 sm:p-8 border border-white/5 shadow-2xl">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-[0.2em]">Signal Quality & Reliability</h3>
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col items-end">
+                  <span className="text-[10px] font-black text-gray-500 uppercase">Data Reliability</span>
+                  <span className={`text-xl font-black ${signalQuality.score > 80 ? 'text-emerald-500' : 'text-amber-500'}`}>{signalQuality.score}%</span>
+                </div>
+                {signalQuality.score < 80 && (
+                   <div className="bg-amber-500/20 text-amber-500 text-[10px] font-black px-3 py-1 rounded-full border border-amber-500/30">
+                     LOW RELIABILITY
+                   </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {Object.entries(signalQuality.sensors).map(([key, data]: [string, any]) => (
+                <div key={key} className="p-3 bg-white/5 rounded-lg border border-white/5">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] font-black text-gray-300">{key}</span>
+                    <span className={`text-[9px] font-bold ${data.q > 80 ? 'text-emerald-500' : 'text-amber-500'}`}>{data.q}%</span>
+                  </div>
+                  <div className="h-1 bg-white/10 rounded-full overflow-hidden mb-2">
+                    <div className={`h-full ${data.q > 80 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${data.q}%` }} />
+                  </div>
+                  <p className="text-[8px] text-gray-500 font-bold uppercase truncate">{data.reason}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar Section: Risk and Intelligence - Second on Mobile, Left on Desktop */}
         <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
-          <div className="glass-card p-8 border border-white/5 shadow-2xl">
+          <div className="glass-card p-4 sm:p-8 border border-white/5 shadow-2xl">
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-[0.2em] mb-8">Risk Intelligence</h3>
             <div className="flex items-center justify-around">
               <div className="flex flex-col items-center">
@@ -454,7 +516,6 @@ export default function PatientDeepDive() {
               <ArcGauge value={(patient.sepsis_probability || 0) * 100} color="#f97316" label="SEPSIS RISK" />
             </div>
             
-            {/* SOLUTION 5: Disclaimer */}
             <div className="mt-8 pt-4 border-t border-white/5 text-center">
               <p className="text-[9px] text-gray-600 italic font-medium">
                 Clinical Decision Support — Physician judgment required.
@@ -462,9 +523,9 @@ export default function PatientDeepDive() {
             </div>
           </div>
 
-          {/* SOLUTION 1: Shadow Testing Card */}
+          {/* Shadow Validation */}
           {shadowMode && (
-            <div className="glass-card p-8 border-l-4 border-indigo-500">
+            <div className="glass-card p-4 sm:p-8 border-l-4 border-indigo-500">
               <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
                 <ShieldCheck size={14} /> Shadow Validation
               </h3>
@@ -506,13 +567,13 @@ export default function PatientDeepDive() {
             </div>
           )}
 
-          {/* SOLUTION 6: Neural Evidence (SHAP) + Clinical Evidence Base */}
+          {/* Neural Evidence (SHAP) */}
           <motion.div 
             animate={{ 
               ring: isDemo && currentProb >= 0.85 ? '2px solid rgba(245, 158, 11, 0.4)' : 'none',
               boxShadow: isDemo && currentProb >= 0.85 ? '0 0 20px rgba(245, 158, 11, 0.1)' : 'none'
             }}
-            className="glass-card p-8 border border-white/5 shadow-2xl flex-1 transition-all duration-1000 overflow-hidden relative"
+            className="glass-card p-4 sm:p-8 border border-white/5 shadow-2xl flex-1 transition-all duration-1000 overflow-hidden relative"
           >
             {isDemo && currentProb >= 0.85 && (
               <div className="absolute top-2 right-4 text-[8px] font-black text-amber-500 animate-pulse uppercase tracking-widest">
@@ -541,71 +602,11 @@ export default function PatientDeepDive() {
             )}
           </motion.div>
         </div>
-
-        <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
-          <div className="glass-card p-8 border border-white/5 shadow-2xl flex-1 flex flex-col min-h-[400px]">
-            <div className="flex justify-between items-center mb-8">
-              <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
-                {['Vitals', 'Labs', 'Imaging'].map(tab => (
-                  <button key={tab} onClick={() => setActiveTab(tab as any)} className={`px-6 py-2 rounded-md text-xs font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-white/10 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}>{tab}</button>
-                ))}
-              </div>
-              <button onClick={() => setSimulationMode(!simulationMode)} className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold text-xs transition-all border ${simulationMode ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-gray-400'}`}>
-                <FlaskConical size={14} /> {simulationMode ? 'SIMULATION ACTIVE' : 'DIGITAL TWIN SIMULATOR'}
-              </button>
-            </div>
-            <div className="flex-1 w-full min-h-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-                  <Tooltip contentStyle={{ background: 'rgba(10, 15, 37, 0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px' }} />
-                  <ReferenceLine x="0h" stroke="white" strokeDasharray="5 5" />
-                  <Line type="monotone" dataKey="hr" name="HR" stroke="#ef4444" strokeWidth={3} dot={false} strokeDasharray={simulationMode ? "5 5" : "0"} />
-                  <Line type="monotone" dataKey="map" name="MAP" stroke="#3b82f6" strokeWidth={3} dot={false} strokeDasharray={simulationMode ? "5 5" : "0"} />
-                  <Line type="monotone" dataKey="spo2" name="SpO2" stroke="#10b981" strokeWidth={3} dot={false} strokeDasharray={simulationMode ? "5 5" : "0"} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* SOLUTION 2: Signal Quality Panel */}
-          <div className="glass-card p-8 border border-white/5 shadow-2xl">
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-[0.2em]">Signal Quality & Reliability</h3>
-              <div className="flex items-center gap-4">
-                <div className="flex flex-col items-end">
-                  <span className="text-[10px] font-black text-gray-500 uppercase">Data Reliability</span>
-                  <span className={`text-xl font-black ${signalQuality.score > 80 ? 'text-emerald-500' : 'text-amber-500'}`}>{signalQuality.score}%</span>
-                </div>
-                {signalQuality.score < 80 && (
-                   <div className="bg-amber-500/20 text-amber-500 text-[10px] font-black px-3 py-1 rounded-full border border-amber-500/30">
-                     LOW RELIABILITY WARNING
-                   </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(signalQuality.sensors).map(([key, data]: [string, any]) => (
-                <div key={key} className="p-3 bg-white/5 rounded-lg border border-white/5">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[10px] font-black text-gray-300">{key}</span>
-                    <span className={`text-[9px] font-bold ${data.q > 80 ? 'text-emerald-500' : 'text-amber-500'}`}>{data.q}%</span>
-                  </div>
-                  <div className="h-1 bg-white/10 rounded-full overflow-hidden mb-2">
-                    <div className={`h-full ${data.q > 80 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${data.q}%` }} />
-                  </div>
-                  <p className="text-[8px] text-gray-500 font-bold uppercase truncate">{data.reason}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-8 mb-20 shrink-0">
+      <div className="grid grid-cols-12 gap-6 lg:gap-8 mb-20 shrink-0">
         <div className="col-span-12 lg:col-span-7 flex flex-col gap-6">
-          <div className="glass-card p-8 border border-white/5 shadow-2xl h-[400px] flex flex-col">
+          <div className="glass-card p-4 sm:p-8 border border-white/5 shadow-2xl h-[400px] flex flex-col">
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-[0.2em] mb-8">Causal Cascade Reasoning</h3>
             <div className="flex-1 bg-black/20 rounded-xl border border-white/5 overflow-hidden">
               <CausalGraph edges={patient.causal_edges} />
@@ -613,7 +614,7 @@ export default function PatientDeepDive() {
           </div>
         </div>
         <div className="col-span-12 lg:col-span-5 flex flex-col gap-6">
-          <div className="glass-card p-8 border border-white/5 shadow-2xl flex-1 flex flex-col">
+          <div className="glass-card p-4 sm:p-8 border border-white/5 shadow-2xl flex-1 flex flex-col">
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-[0.2em] mb-8">Clinical Observations</h3>
             <div className="flex-1 overflow-y-auto mb-6 pr-2 space-y-4">
               <div className="bg-white/5 p-4 rounded-lg border border-white/10 italic text-sm text-gray-400">"{patient.clinical_notes}"</div>
