@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,7 +17,6 @@ import { VITAL_COLORS, getTierColor } from '../api';
 export default function PatientDeepDive() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { patients, alerts, addToast, shadowMode, patientAssessments, submitAssessment } = useStore();
   const { 
     patients, alerts, addToast, shadowMode, patientAssessments, submitAssessment,
     demoModeActive, setDemoModeActive, demoVitals, setDemoVitals, 

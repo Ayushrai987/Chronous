@@ -10,9 +10,11 @@ interface PatientCardProps {
 }
 
 export default function PatientCard({ patient }: PatientCardProps) {
-  const { codeBluePatient, confirmDeath, setDemoModeActive, setDemoVitals, setDemoProbability, setDemoCountdown } = useStore();
+  const { 
+    codeBluePatient, confirmDeath, setDemoModeActive, setDemoVitals, 
+    setDemoProbability, setDemoCountdown, shadowMode 
+  } = useStore();
   const navigate = useNavigate();
-  const { shadowMode } = useStore();
 
   const latestVitals = patient.vitals[0];
 
