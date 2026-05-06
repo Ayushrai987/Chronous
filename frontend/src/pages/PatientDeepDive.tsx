@@ -18,17 +18,104 @@ export default function PatientDeepDive() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { patients, alerts, addToast, shadowMode, patientAssessments, submitAssessment } = useStore();
+  const { 
+    patients, alerts, addToast, shadowMode, patientAssessments, submitAssessment,
+    demoModeActive, setDemoModeActive, demoVitals, setDemoVitals, 
+    demoProbability, setDemoProbability, demoCountdown, setDemoCountdown,
+    updatePatient
+  } = useStore();
   const patient = patients.find(p => String(p.patient_id).toLowerCase() === String(id).toLowerCase());
   const assessment = patient ? patientAssessments[patient.patient_id] : null;
+  const isDemo = demoModeActive && patient?.patient_id === 'demo-rajesh';
 
   const [activeTab, setActiveTab] = useState<'Vitals' | 'Labs' | 'Imaging'>('Vitals');
   const [simulationMode, setSimulationMode] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [manualNote, setManualNote] = useState('');
   const [userAssessment, setUserAssessment] = useState('');
+  const [tickCount, setTickCount] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [hasAlerted, setHasAlerted] = useState(false);
+  const [isIntervening, setIsIntervening] = useState(false);
+
+  // DEMO SEQUENCE LOGIC
+  useEffect(() => {
+    if (isDemo && !isPaused) {
+      const interval = setInterval(() => {
+        if (isPaused) return;
+
+        setTickCount(prev => prev + 1);
+
+        if (!isIntervening) {
+          // DETERIORATION
+          setDemoVitals(prev => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              heart_rate: Math.min(128, prev.heart_rate + (3 + Math.floor(Math.random() * 3))),
+              map_pressure: Math.max(52, prev.map_pressure - (2 + Math.floor(Math.random() * 2))),
+              spo2: Math.max(86, prev.spo2 - (0.5 + Math.random() * 0.5)),
+              serum_lactate: Math.min(5.8, prev.serum_lactate + 0.2),
+              respiratory_rate: Math.min(32, prev.respiratory_rate + 1),
+              gcs_score: tickCount % 5 === 0 ? Math.max(8, prev.gcs_score - 1) : prev.gcs_score,
+              temperature: tickCount % 3 === 0 ? prev.temperature + 0.1 : prev.temperature,
+              urine_output: Math.max(0, prev.urine_output - 3),
+              timestamp: new Date().toISOString()
+            };
+          });
+          setDemoProbability(prev => Math.min(0.99, prev + (0.02 + Math.random() * 0.01)));
+          setDemoCountdown(prev => Math.max(0, prev - 6));
+        } else {
+          // RECOVERY
+          setDemoVitals(prev => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              heart_rate: Math.max(88, prev.heart_rate - 2),
+              map_pressure: Math.min(74, prev.map_pressure + 2),
+              timestamp: new Date().toISOString()
+            };
+          });
+          setDemoProbability(prev => Math.max(0.3, prev - 0.04));
+        }
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [isDemo, isPaused, isIntervening, tickCount]);
+
+  // SOUND TRIGGER
+  useEffect(() => {
+    if (isDemo && demoProbability >= 0.75 && !hasAlerted) {
+      setHasAlerted(true);
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const playBeep = (time: number) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.value = 880;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.2, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+        osc.start(time);
+        osc.stop(time + 0.2);
+      };
+
+      for (let i = 0; i < 3; i++) {
+        const base = audioCtx.currentTime + (i * 0.8);
+        playBeep(base);
+        playBeep(base + 0.3);
+      }
+
+      addToast({ 
+        type: 'critical', 
+        message: "⚠ ALERT — Rajesh Kumar ICU-01 — Crash probability exceeded 75% — Immediate assessment required." 
+      });
+    }
+  }, [isDemo, demoProbability, hasAlerted]);
 
   // SOLUTION 2: Signal Quality Engine
-  const latestVitals = patient?.vitals[0];
+  const latestVitals = isDemo && demoVitals ? demoVitals : patient?.vitals[0];
   const signalQuality = useMemo(() => {
     if (!latestVitals) return { score: 100, sensors: {} };
     const sensors: any = {};
@@ -61,15 +148,16 @@ export default function PatientDeepDive() {
     return { score: Math.round(totalScore / 8), sensors };
   }, [latestVitals]);
 
+  const currentProb = isDemo ? demoProbability : (patient?.crash_probability || 0);
   const reliabilityMargin = (100 - signalQuality.score) / 5;
-  const crashProbDisplay = patient ? `${(patient.crash_probability * 100).toFixed(1)}% ± ${reliabilityMargin.toFixed(1)}%` : '0%';
+  const crashProbDisplay = patient ? `${(currentProb * 100).toFixed(1)}% ± ${reliabilityMargin.toFixed(1)}%` : '0%';
 
   const isDeceased = patient?.status === 'Deceased';
   const isHardwareFailure = patient?.status === 'Hardware Failure';
 
   const chartData = useMemo(() => {
     if (!patient) return [];
-    const data = (patient.vitals || []).map((v, i) => ({
+    let history = (patient.vitals || []).map((v, i) => ({
       time: i,
       timeLabel: `${-11 + i}h`,
       hr: v.heart_rate,
@@ -83,21 +171,37 @@ export default function PatientDeepDive() {
       risk: (patient.crash_probability * 100) - (Math.random() * 10)
     }));
 
-    if (!isDeceased && !isHardwareFailure) {
-      const lastPoint = data[data.length - 1];
+    if (isDemo && demoVitals) {
+      history = [...history, {
+        time: 12,
+        timeLabel: 'LIVE',
+        hr: demoVitals.heart_rate,
+        map: demoVitals.map_pressure,
+        spo2: demoVitals.spo2,
+        rr: demoVitals.respiratory_rate,
+        temp: demoVitals.temperature,
+        lac: demoVitals.serum_lactate,
+        gcs: demoVitals.gcs_score,
+        uo: demoVitals.urine_output,
+        risk: demoProbability * 100
+      } as any];
+    }
+
+    if (!isDeceased && !isHardwareFailure && !isDemo) {
+      const lastPoint = history[history.length - 1];
       for (let i = 1; i <= 6; i++) {
-        data.push({
+        history.push({
           timeLabel: `+${i}h`,
-          hr: simulationMode ? Math.max(75, lastPoint.hr - (i * 3)) : lastPoint.hr,
-          map: simulationMode ? Math.min(85, lastPoint.map + (i * 2)) : lastPoint.map,
-          spo2: simulationMode ? Math.min(100, lastPoint.spo2 + (i * 0.5)) : lastPoint.spo2,
-          risk: simulationMode ? lastPoint.risk - (i * 8) : lastPoint.risk + (i * 2),
+          hr: simulationMode ? Math.max(75, (lastPoint as any).hr - (i * 3)) : (lastPoint as any).hr,
+          map: simulationMode ? Math.min(85, (lastPoint as any).map + (i * 2)) : (lastPoint as any).map,
+          spo2: simulationMode ? Math.min(100, (lastPoint as any).spo2 + (i * 0.5)) : (lastPoint as any).spo2,
+          risk: simulationMode ? (lastPoint as any).risk - (i * 8) : (lastPoint as any).risk + (i * 2),
           isPrediction: true
         } as any);
       }
     }
-    return data;
-  }, [patient, simulationMode, isDeceased, isHardwareFailure]);
+    return history;
+  }, [patient, simulationMode, isDeceased, isHardwareFailure, isDemo, demoVitals, demoProbability]);
 
   if (!patient) return (
     <div className="h-full flex flex-col items-center justify-center text-gray-400">
@@ -265,9 +369,28 @@ export default function PatientDeepDive() {
   }
 
   // ACTIVE PATIENT VIEW
+  const effectiveTier = isDemo && demoProbability >= 0.75 ? 'CRITICAL' : patient.risk_tier;
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col bg-[#0c1117] p-8 overflow-y-auto">
-      <header className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 pb-6 border-b border-white/10 gap-6 shrink-0">
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ 
+        opacity: 1,
+        backgroundColor: isDemo && demoProbability >= 0.75 ? 'rgba(220,38,38,0.04)' : '#0c1117'
+      }} 
+      className="h-full flex flex-col p-8 overflow-y-auto transition-colors duration-1000"
+    >
+      {isDemo && demoProbability >= 0.75 && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-amber-500/20 text-amber-500 text-center py-2 px-4 rounded-lg border border-amber-500/30 font-black text-xs uppercase tracking-widest mb-6"
+        >
+          Trajectory indicates septic shock onset within 1.5 hours — counterfactual intervention available.
+        </motion.div>
+      )}
+
+      <header className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 pb-6 border-b border-white/10 gap-6 shrink-0 relative">
         <div className="flex items-center gap-6">
           <button onClick={() => navigate(-1)} className="p-3 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-all text-gray-400 hover:text-white"><ArrowLeft size={24} /></button>
           <div>
@@ -275,10 +398,41 @@ export default function PatientDeepDive() {
             <p className="text-sm text-[#8899aa] font-bold">{patient.age}Y • {patient.sex} • {patient.bed_id} • {patient.diagnosis}</p>
           </div>
         </div>
-        <div className="flex flex-col items-end">
-          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Risk Tier</span>
-          <div className="px-6 py-2 rounded-xl font-black text-xl border" style={{ backgroundColor: `${getTierColor(patient.risk_tier)}15`, color: getTierColor(patient.risk_tier), borderColor: `${getTierColor(patient.risk_tier)}30` }}>
-            {patient.risk_tier}
+        
+        <div className="flex items-center gap-4">
+          {isDemo && (
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setIsPaused(!isPaused)}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-black text-gray-400 uppercase tracking-widest border border-white/10 transition-all"
+              >
+                {isPaused ? '▶ Resume Demo' : '⏸ Pause Demo'}
+              </button>
+              <button 
+                onClick={() => {
+                  setDemoModeActive(false);
+                  setIsIntervening(false);
+                  setTickCount(0);
+                  setHasAlerted(false);
+                }}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-black text-gray-400 uppercase tracking-widest border border-white/10 transition-all"
+              >
+                🔄 Reset Demo
+              </button>
+            </div>
+          )}
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Risk Tier</span>
+            <motion.div 
+              animate={{ 
+                backgroundColor: `${getTierColor(effectiveTier)}15`, 
+                color: getTierColor(effectiveTier), 
+                borderColor: `${getTierColor(effectiveTier)}30` 
+              }}
+              className="px-6 py-2 rounded-xl font-black text-xl border transition-colors duration-500"
+            >
+              {effectiveTier}
+            </motion.div>
           </div>
         </div>
       </header>
@@ -289,7 +443,11 @@ export default function PatientDeepDive() {
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-[0.2em] mb-8">Risk Intelligence</h3>
             <div className="flex items-center justify-around">
               <div className="flex flex-col items-center">
-                <ArcGauge value={(patient.crash_probability || 0) * 100} color={getTierColor(patient.risk_tier)} label="CRASH RISK" />
+                <ArcGauge 
+                  value={currentProb * 100} 
+                  color={currentProb >= 0.75 ? '#dc2626' : getTierColor(effectiveTier)} 
+                  label="CRASH RISK" 
+                />
                 <p className="text-[10px] font-bold text-gray-400 mt-2">{crashProbDisplay}</p>
                 <p className="text-[8px] text-gray-600 uppercase font-black">Reliability adjusted</p>
               </div>
@@ -349,14 +507,39 @@ export default function PatientDeepDive() {
           )}
 
           {/* SOLUTION 6: Neural Evidence (SHAP) + Clinical Evidence Base */}
-          <div className="glass-card p-8 border border-white/5 shadow-2xl flex-1">
+          <motion.div 
+            animate={{ 
+              ring: isDemo && currentProb >= 0.85 ? '2px solid rgba(245, 158, 11, 0.4)' : 'none',
+              boxShadow: isDemo && currentProb >= 0.85 ? '0 0 20px rgba(245, 158, 11, 0.1)' : 'none'
+            }}
+            className="glass-card p-8 border border-white/5 shadow-2xl flex-1 transition-all duration-1000 overflow-hidden relative"
+          >
+            {isDemo && currentProb >= 0.85 && (
+              <div className="absolute top-2 right-4 text-[8px] font-black text-amber-500 animate-pulse uppercase tracking-widest">
+                INTERVENTION WINDOW CLOSING
+              </div>
+            )}
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-[0.2em] mb-8">Neural Evidence (SHAP)</h3>
             <div className="flex flex-col gap-6">
               {patient.top_drivers.map((d, i) => (
-                <ShapEvidenceItem key={i} driver={d} />
+                <ShapEvidenceItem key={i} driver={d} isDemo={isDemo} currentProb={currentProb} />
               ))}
             </div>
-          </div>
+
+            {isDemo && (
+              <div className="mt-8 pt-6 border-t border-white/10">
+                <button 
+                  onClick={() => {
+                    setIsIntervening(true);
+                    addToast({ type: 'success', message: 'Intervention logged — Vitals stabilizing — Crash probability decreasing.' });
+                  }}
+                  className={`w-full py-3 rounded-lg font-black text-xs uppercase tracking-widest transition-all ${isIntervening ? 'bg-emerald-600 text-white cursor-default' : 'bg-blue-600 hover:bg-blue-500 text-white active:scale-95'}`}
+                >
+                  {isIntervening ? '✓ INTERVENTION ACTIVE' : '⚡ Simulate Intervention'}
+                </button>
+              </div>
+            )}
+          </motion.div>
         </div>
 
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
@@ -475,7 +658,7 @@ function AnalysisItem({ label, value }: any) {
   );
 }
 
-function ShapEvidenceItem({ driver }: { driver: any }) {
+function ShapEvidenceItem({ driver, isDemo, currentProb }: { driver: any, isDemo?: boolean, currentProb?: number }) {
   const [expanded, setExpanded] = useState(false);
   
   const evidence: any = {
@@ -499,9 +682,18 @@ function ShapEvidenceItem({ driver }: { driver: any }) {
         </span>
         <span className="text-[10px] font-mono text-gray-500">{driver.importance.toFixed(3)}</span>
       </div>
-      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-        <div className={`h-full bg-red-500`} style={{ width: `${driver.importance * 150}%` }} />
-      </div>
+      <motion.div 
+        animate={{
+          scale: isDemo && driver.feature === 'MAP' && currentProb >= 0.75 ? [1, 1.02, 1] : 1
+        }}
+        transition={{ repeat: Infinity, duration: 2 }}
+        className="h-1.5 bg-white/5 rounded-full overflow-hidden"
+      >
+        <div 
+          className={`h-full transition-all duration-1000 ${driver.feature === 'MAP' && isDemo && currentProb >= 0.75 ? 'bg-red-500' : 'bg-red-500'}`} 
+          style={{ width: `${driver.importance * 150}%` }} 
+        />
+      </motion.div>
       
       <AnimatePresence>
         {expanded && (

@@ -64,6 +64,16 @@ interface AppState {
   simulateHardwareRecovery: (patientId: string) => void;
   addPatient: (patient: Patient) => void;
   markAlertLogged: (alertId: string) => void;
+  
+  // Demo Mode
+  demoModeActive: boolean;
+  setDemoModeActive: (active: boolean) => void;
+  demoVitals: VitalReading | null;
+  setDemoVitals: (vitals: VitalReading | null) => void;
+  demoProbability: number;
+  setDemoProbability: (prob: number) => void;
+  demoCountdown: number;
+  setDemoCountdown: (mins: number) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -223,5 +233,14 @@ export const useStore = create<AppState>((set, get) => ({
 
   markAlertLogged: (alertId) => set((state) => ({
     alerts: state.alerts.map(a => a.id === alertId ? { ...a, intervened: true } : a)
-  }))
+  })),
+
+  demoModeActive: false,
+  setDemoModeActive: (active) => set({ demoModeActive: active }),
+  demoVitals: null,
+  setDemoVitals: (vitals) => set({ demoVitals: vitals }),
+  demoProbability: 0.55,
+  setDemoProbability: (prob) => set({ demoProbability: prob }),
+  demoCountdown: 180, // 3 hours in minutes
+  setDemoCountdown: (mins) => set({ demoCountdown: mins })
 }));

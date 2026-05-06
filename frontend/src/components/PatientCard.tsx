@@ -10,7 +10,7 @@ interface PatientCardProps {
 }
 
 export default function PatientCard({ patient }: PatientCardProps) {
-  const { codeBluePatient, confirmDeath } = useStore();
+  const { codeBluePatient, confirmDeath, setDemoModeActive, setDemoVitals, setDemoProbability, setDemoCountdown } = useStore();
   const navigate = useNavigate();
   const { shadowMode } = useStore();
 
@@ -163,13 +163,31 @@ export default function PatientCard({ patient }: PatientCardProps) {
       </div>
     );
   }
+  const isDemoPatient = patient.patient_id === 'demo-rajesh';
+
   return (
     <div
-      className={`patient-card glass-card p-4 relative group overflow-hidden flex flex-col transition-all border border-white/10 hover:border-white/20 min-h-[280px] ${patient.risk_tier === 'CRITICAL' ? 'pulse-critical' : ''}`}
+      onClick={() => {
+        if (isDemoPatient) {
+          setDemoModeActive(true);
+          setDemoVitals(patient.vitals[0]);
+          setDemoProbability(patient.crash_probability);
+          setDemoCountdown(patient.intervention_window * 60);
+        }
+        navigate(`/app/patient/${patient.patient_id}`);
+      }}
+      className={`patient-card glass-card p-4 relative group overflow-hidden flex flex-col transition-all border border-white/10 hover:border-white/20 min-h-[280px] cursor-pointer 
+        ${patient.risk_tier === 'CRITICAL' ? 'pulse-critical' : ''} 
+        ${isDemoPatient ? 'ring-2 ring-amber-500/30 animate-[pulse_3s_infinite]' : ''}`}
       style={{
         borderLeft: `1px solid ${getTierColor(patient.risk_tier)}`,
       }}
     >
+      {isDemoPatient && (
+        <div className="absolute top-2 left-2 z-20 bg-amber-950/80 text-amber-500 text-[8px] font-black px-2 py-0.5 rounded border border-amber-500/30 tracking-tighter">
+          LIVE DEMO
+        </div>
+      )}
       {/* Top row: Name, Bed, Risk Badge */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1 min-w-0 pr-4">

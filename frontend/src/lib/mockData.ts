@@ -129,6 +129,20 @@ const makePatient = (i: number, overrides: Partial<Patient> = {}): Patient => {
 // Generate 108 patients
 const patients: Patient[] = [];
 
+// Specific Demo Patient: Rajesh Kumar
+patients.push(makePatient(109, {
+  patient_id: "demo-rajesh",
+  name: "Rajesh Kumar", age: 62, sex: "M", bed_id: "ICU-01",
+  diagnosis: "Septic Shock",
+  status: "Active", risk_tier: "HIGH", crash_probability: 0.55,
+  vitals: generateVitals("stable", { hr: 88, map: 74, spo2: 94, rr: 22, temp: 37.0, lac: 2.1, gcs: 14, uo: 50 }),
+  intervention_window: 3.5,
+  top_drivers: [
+    { rank: 1, feature: "MAP", importance: 0.15, direction: "risk-increasing", trend: "stable", label: "MAP Borderline" },
+    { rank: 2, feature: "Lactate", importance: 0.12, direction: "risk-increasing", trend: "rising", label: "Lactate Rising" }
+  ]
+}));
+
 // Specific Deceased 1: Ramesh Agarwal
 patients.push(makePatient(0, {
   name: "Ramesh Agarwal", age: 71, sex: "M", bed_id: "ICU-B2", 
